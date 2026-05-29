@@ -37,7 +37,7 @@ window.addEventListener('load', async () => {
 
     // Fetch dynamic configurations
     try {
-        const response = await fetch('http://localhost:5000/api/navigation-config');
+        const response = await fetch('/api/navigation-config');
         if (response.ok) {
             const configData = await response.json();
             configData.destinations.forEach(dest => {
@@ -302,7 +302,7 @@ window.addEventListener('load', async () => {
     }
 
     function logTelemetry(destinationName, mode) {
-        fetch('http://localhost:5000/api/telemetry/log', {
+        fetch('/api/telemetry/log', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

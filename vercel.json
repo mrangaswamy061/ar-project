@@ -10,12 +10,19 @@
     },
     {
       "src": "backend/server.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": "backend/admin.html"
+      }
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
+      "dest": "/backend/server.js"
+    },
+    {
+      "src": "/dashboard",
       "dest": "/backend/server.js"
     },
     {
