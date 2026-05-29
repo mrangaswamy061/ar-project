@@ -35,21 +35,25 @@ window.addEventListener('load', async () => {
     let isNavigating = false;
     let navigationConfig = {}; // Stores fetched dynamic configurations
 
-    // Fetch dynamic configurations
-    try {
-        const response = await fetch('/api/navigation-config');
-        if (response.ok) {
-            const configData = await response.json();
-            configData.destinations.forEach(dest => {
-                navigationConfig[dest.id] = dest;
-            });
-            renderDynamicDestinations();
-        } else {
-            console.error('Failed to load dynamic config');
+    // Fetch dynamic configurations without blocking the UI
+    async function fetchNavigationData() {
+        try {
+            const response = await fetch('/api/navigation-config');
+            if (response.ok) {
+                const configData = await response.json();
+                configData.destinations.forEach(dest => {
+                    navigationConfig[dest.id] = dest;
+                });
+                renderDynamicDestinations();
+            } else {
+                console.error('Failed to load dynamic config');
+            }
+        } catch (err) {
+            console.error('API Error:', err);
         }
-    } catch (err) {
-        console.error('API Error:', err);
     }
+    
+    fetchNavigationData();
 
     // Initially hide dev sandbox overlay until AR mode is active
     if (devSandbox) devSandbox.style.display = 'none';
