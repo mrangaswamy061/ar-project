@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Marker</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #333;
+            color: white;
+            font-family: sans-serif;
+            flex-direction: column;
+        }
+        img {
+            max-width: 80%;
+            max-height: 80vh;
+            border: 5px solid white;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Point your phone camera at this image</h2>
+    <img src="https://raw.githubusercontent.com/AR-js-org/AR.js/master/aframe/examples/image-tracking/nft/trex/trex-image/trex.jpg" alt="T-Rex Marker" onerror="this.onerror=null; this.src='https://jeromeetienne.github.io/AR.js/data/images/HIRO.jpg'; document.getElementById('error-text').style.display='block';">
+    <p id="error-text" style="display:none; color: #ff6b6b;">Note: The image fallback was used. If you see a square 'Hiro' barcode here instead of a T-Rex, please let me know!</p>
+</body>
+</html>

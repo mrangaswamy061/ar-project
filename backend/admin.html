@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus AR | Admin Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f172a; --panel: rgba(30, 41, 59, 0.7); --text: #f8fafc;
+            --accent: #3b82f6; --accent-glow: rgba(59, 130, 246, 0.5);
+            --success: #10b981; --danger: #ef4444;
+        }
+        body {
+            margin: 0; padding: 2rem; font-family: 'Outfit', sans-serif;
+            background: var(--bg); color: var(--text);
+            background-image: radial-gradient(circle at top right, #1e1b4b, transparent 40%),
+                              radial-gradient(circle at bottom left, #0f172a, transparent 40%);
+            min-height: 100vh;
+        }
+        
+        /* LOGIN OVERLAY */
+        #login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.95); z-index: 1000;
+            display: flex; justify-content: center; align-items: center;
+            backdrop-filter: blur(10px);
+        }
+        .login-box {
+            background: var(--panel); padding: 3rem; border-radius: 16px;
+            text-align: center; border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 0 30px rgba(0,0,0,0.5); width: 350px;
+        }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .header h1 { margin: 0; font-size: 2.5rem; text-shadow: 0 0 20px var(--accent-glow); }
+        .tabs { display: flex; gap: 1rem; margin-bottom: 2rem; }
+        .tab {
+            padding: 10px 20px; background: rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;
+            transition: all 0.3s ease; font-weight: 600;
+        }
+        .tab.active { background: var(--accent); box-shadow: 0 0 15px var(--accent-glow); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+        .glass-card {
+            background: var(--panel); backdrop-filter: blur(12px); border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1); padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        .stat-value { font-size: 3rem; font-weight: 600; color: var(--accent); margin: 0.5rem 0; }
+        .stat-label { color: #94a3b8; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        th { color: #94a3b8; font-weight: 400; text-transform: uppercase; font-size: 0.9rem; }
+        tr:hover td { background: rgba(255,255,255,0.02); }
+        
+        .badge {
+            padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+            background: rgba(59,130,246,0.2); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3);
+        }
+        .badge.video { background: rgba(16,185,129,0.2); color: #34d399; border-color: rgba(16,185,129,0.3); }
+        
+        .bar-container { width: 100%; background: rgba(0,0,0,0.3); border-radius: 8px; overflow: hidden; margin-top: 8px; height: 12px; }
+        .bar { height: 100%; background: var(--accent); border-radius: 8px; box-shadow: 0 0 10px var(--accent-glow); }
+        
+        button {
+            background: var(--accent); color: white; border: none; padding: 10px 16px;
+            border-radius: 8px; font-family: 'Outfit'; font-weight: 600; cursor: pointer;
+            transition: all 0.2s;
+        }
+        button:hover { filter: brightness(1.1); box-shadow: 0 0 10px var(--accent-glow); }
+        button.danger { background: var(--danger); box-shadow: none; }
+        button.danger:hover { box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
+        button.success { background: var(--success); }
+        
+        input, select {
+            width: 100%; padding: 10px; margin: 8px 0 16px 0; border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white;
+            font-family: 'Outfit'; font-size: 1rem; box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SECURE LOGIN -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2 style="margin-top: 0;">Admin Access</h2>
+            <input type="text" id="admin-user" placeholder="Enter username" style="margin-bottom: 5px;">
+            <input type="password" id="admin-pass" placeholder="Enter password" onkeypress="if(event.key==='Enter') login()">
+            <button style="width: 100%;" onclick="login()">Login</button>
+            <div id="login-err" style="color: var(--danger); margin-top: 10px; font-size: 0.9rem;"></div>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <div id="dashboard-main" style="display: none;">
+        <div class="header">
+            <div>
+                <h1>Campus AR Admin</h1>
+                <p style="color: #94a3b8;">Real-time platform telemetry & CMS dashboard</p>
+            </div>
+            <button onclick="logout()" class="danger">Logout</button>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('analytics')">📊 Analytics</div>
+            <div class="tab" onclick="switchTab('cms')">🛠️ Manage Destinations</div>
+            <div class="tab" onclick="switchTab('health')">🫀 Server Health</div>
+        </div>
+
+        <!-- ANALYTICS TAB -->
+        <div id="analytics" class="tab-content active">
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+                <button id="export-csv-btn">📥 Export Telemetry to CSV</button>
+            </div>
+            <div class="grid">
+                <div class="glass-card">
+                    <div class="stat-label">Total Sessions</div>
+                    <div class="stat-value" id="total-sessions">0</div>
+                </div>
+                <div class="glass-card">
+                    <div class="stat-label">Mode Preference</div>
+                    <div style="display: flex; gap: 2rem; margin-top: 1rem;">
+                        <div>
+                            <div style="font-size: 1.5rem; color: #34d399; font-weight: 600;" id="video-count">0</div>
+                            <div style="color: #94a3b8; font-size: 0.9rem;">Video Guide</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 1.5rem; color: #60a5fa; font-weight: 600;" id="ar-count">0</div>
+                            <div style="color: #94a3b8; font-size: 0.9rem;">Live AR</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-card" style="grid-column: 1 / -1;">
+                    <div class="stat-label">Popular Destinations</div>
+                    <div id="destinations-list" style="margin-top: 1rem;"></div>
+                </div>
+                <div class="glass-card" style="grid-column: 1 / -1;">
+                    <div class="stat-label">Recent Activity Logs</div>
+                    <table>
+                        <thead><tr><th>Time</th><th>Destination</th><th>Mode</th><th>Device</th></tr></thead>
+                        <tbody id="logs-table"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- CMS TAB -->
+        <div id="cms" class="tab-content">
+            <div class="grid">
+                <div class="glass-card" style="grid-column: 1 / 3;">
+                    <div class="stat-label">Current Destinations</div>
+                    <table>
+                        <thead><tr><th>ID</th><th>Name</th><th>Mode</th><th>Metrics</th><th>Action</th></tr></thead>
+                        <tbody id="cms-table"></tbody>
+                    </table>
+                </div>
+                
+                <div class="glass-card">
+                    <div class="stat-label">Add / Edit Destination</div>
+                    <form id="cms-form" onsubmit="submitDest(event)" style="margin-top: 1rem;">
+                        <label>Destination ID</label> <input type="text" id="dest-id" required>
+                        <label>Display Name</label> <input type="text" id="dest-name" required>
+                        <label>Type</label>
+                        <select id="dest-type">
+                            <option value="video">Video Route</option>
+                            <option value="arrow">AR Static Arrow</option>
+                        </select>
+                        <label>Video Timestamp (seconds)</label> <input type="number" step="0.1" id="dest-time" value="0">
+                        <label>AR Rotation</label> <input type="text" id="dest-rot" value="0 0 0">
+                        <label>AR Instructions</label> <input type="text" id="dest-instructions" required>
+                        <button type="submit" style="width: 100%; margin-top: 10px;">Save Destination</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- HEALTH & BACKUPS TAB -->
+        <div id="health" class="tab-content">
+            <div class="grid">
+                <div class="glass-card">
+                    <div class="stat-label">Server Uptime</div>
+                    <div class="stat-value" id="uptime-val" style="font-size: 2.2rem;">0h 0m</div>
+                </div>
+                <div class="glass-card">
+                    <div class="stat-label">Memory Usage</div>
+                    <div class="stat-value" id="mem-val" style="font-size: 2.2rem; color: var(--success);">0%</div>
+                    <div style="color: #94a3b8; font-size: 0.9rem;" id="mem-details">0 / 0 GB</div>
+                </div>
+                <div class="glass-card">
+                    <div class="stat-label">CPU Load (1m)</div>
+                    <div class="stat-value" id="cpu-val" style="font-size: 2.2rem; color: #fbbf24;">0.00</div>
+                </div>
+                <div class="glass-card" style="grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <div class="stat-label">Data Backups</div>
+                        <p style="color: #94a3b8; margin: 5px 0 0 0;">Download a bundled snapshot of your configurations and analytics logs.</p>
+                    </div>
+                    <button class="success" onclick="downloadBackup()" style="font-size: 1.1rem; padding: 15px 25px;">💾 Download JSON Backup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let rawLogs = [];
+        let authToken = sessionStorage.getItem('adminToken') || null;
+        let refreshInterval = null;
+
+        // AUTHENTICATION LOGIC
+        if (authToken) { showDashboard(); }
+
+        async function login() {
+            const user = document.getElementById('admin-user').value;
+            const pass = document.getElementById('admin-pass').value;
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    authToken = data.token;
+                    sessionStorage.setItem('adminToken', authToken);
+                    showDashboard();
+                } else {
+                    document.getElementById('login-err').innerText = 'Invalid Credentials';
+                }
+            } catch (err) {
+                document.getElementById('login-err').innerText = 'Server error. Try again.';
+            }
+        }
+
+        function logout() {
+            authToken = null;
+            sessionStorage.removeItem('adminToken');
+            document.getElementById('dashboard-main').style.display = 'none';
+            document.getElementById('login-overlay').style.display = 'flex';
+            document.getElementById('admin-pass').value = '';
+            if(refreshInterval) clearInterval(refreshInterval);
+        }
+
+        function showDashboard() {
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('dashboard-main').style.display = 'block';
+            loadStats();
+            refreshInterval = setInterval(() => { loadStats(); if(document.getElementById('health').classList.contains('active')) loadHealth(); }, 5000);
+        }
+
+        // FETCH WRAPPER (Adds Token)
+        async function fetchWithAuth(url, options = {}) {
+            options.headers = { ...options.headers, 'Authorization': `Bearer ${authToken}` };
+            const res = await fetch(url, options);
+            if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
+            return res;
+        }
+
+        // TAB SWITCHING
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+            
+            if (tabId === 'cms') loadCMS();
+            if (tabId === 'health') loadHealth();
+        }
+
+        // STATS LOAD
+        async function loadStats() {
+            try {
+                const res = await fetchWithAuth('/api/telemetry/stats');
+                const data = await res.json();
+                rawLogs = data.recentLogs;
+                
+                document.getElementById('total-sessions').textContent = data.totalSessions;
+                document.getElementById('video-count').textContent = data.modes.video || 0;
+                document.getElementById('ar-count').textContent = data.modes.ar || 0;
+
+                const maxDestCount = data.popularDestinations.length > 0 ? data.popularDestinations[0].count : 1;
+                document.getElementById('destinations-list').innerHTML = data.popularDestinations.map(d => `
+                    <div style="margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                            <span>${d.name}</span> <span style="color: #94a3b8;">${d.count} sessions</span>
+                        </div>
+                        <div class="bar-container"><div class="bar" style="width: ${(d.count / maxDestCount) * 100}%"></div></div>
+                    </div>
+                `).join('');
+
+                document.getElementById('logs-table').innerHTML = data.recentLogs.map(log => `
+                    <tr>
+                        <td style="color: #94a3b8;">${new Date(log.timestamp).toLocaleString()}</td>
+                        <td style="font-weight: 600;">${log.destination}</td>
+                        <td><span class="badge ${log.mode}">${(log.mode || '').toUpperCase()}</span></td>
+                        <td style="color: #94a3b8;">${log.device || 'Unknown'}</td>
+                    </tr>
+                `).join('');
+            } catch (err) { console.error(err); }
+        }
+
+        // CMS LOAD
+        async function loadCMS() {
+            try {
+                const res = await fetch('/api/navigation-config'); // Public endpoint in this setup
+                const data = await res.json();
+                
+                document.getElementById('cms-table').innerHTML = data.destinations.map(d => `
+                    <tr>
+                        <td style="color: #94a3b8;">${d.id}</td>
+                        <td style="font-weight: 600;">${d.name}</td>
+                        <td><span class="badge">${d.type}</span></td>
+                        <td style="color: #94a3b8;">${d.type === 'video' ? d.video_time + 's' : d.ar_rot}</td>
+                        <td>
+                            <button onclick="editDest('${d.id}')" style="padding: 5px 10px; font-size: 0.8rem;">Edit</button>
+                            <button class="danger" onclick="deleteDest('${d.id}')" style="padding: 5px 10px; font-size: 0.8rem;">Del</button>
+                        </td>
+                    </tr>
+                `).join('');
+                window._destConfig = data.destinations;
+            } catch (err) { console.error(err); }
+        }
+
+        async function submitDest(e) {
+            e.preventDefault();
+            const payload = {
+                id: document.getElementById('dest-id').value,
+                name: document.getElementById('dest-name').value,
+                type: document.getElementById('dest-type').value,
+                video_time: parseFloat(document.getElementById('dest-time').value),
+                ar_rot: document.getElementById('dest-rot').value,
+                instructions: document.getElementById('dest-instructions').value
+            };
+            await fetchWithAuth('/api/navigation-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            loadCMS();
+            e.target.reset();
+        }
+
+        function editDest(id) {
+            const dest = window._destConfig.find(d => d.id === id);
+            if (!dest) return;
+            document.getElementById('dest-id').value = dest.id;
+            document.getElementById('dest-name').value = dest.name;
+            document.getElementById('dest-type').value = dest.type;
+            document.getElementById('dest-time').value = dest.video_time || 0;
+            document.getElementById('dest-rot').value = dest.ar_rot || '0 0 0';
+            document.getElementById('dest-instructions').value = dest.instructions || '';
+        }
+
+        async function deleteDest(id) {
+            if (confirm('Are you sure you want to delete this destination?')) {
+                await fetchWithAuth('/api/navigation-config/' + id, { method: 'DELETE' });
+                loadCMS();
+            }
+        }
+
+        // HEALTH LOAD
+        async function loadHealth() {
+            try {
+                const res = await fetchWithAuth('/api/health/stats');
+                const data = await res.json();
+                
+                // Format Uptime
+                const h = Math.floor(data.uptime / 3600);
+                const m = Math.floor((data.uptime % 3600) / 60);
+                document.getElementById('uptime-val').textContent = `${h}h ${m}m`;
+                
+                // Memory
+                document.getElementById('mem-val').textContent = data.memory.percent;
+                document.getElementById('mem-details').textContent = `${data.memory.used} / ${data.memory.total}`;
+                
+                // CPU
+                document.getElementById('cpu-val').textContent = data.cpuLoad;
+            } catch (err) { console.error(err); }
+        }
+
+        // DATA EXPORT
+        document.getElementById('export-csv-btn').addEventListener('click', () => {
+            if (rawLogs.length === 0) return alert('No data to export!');
+            let csvContent = "data:text/csv;charset=utf-8,Timestamp,Destination,Mode,Device,IP\n";
+            rawLogs.forEach(row => { csvContent += `${row.timestamp},"${row.destination}",${row.mode},${row.device},${row.ip}\n`; });
+            const link = document.createElement("a");
+            link.setAttribute("href", encodeURI(csvContent));
+            link.setAttribute("download", "campus_ar_telemetry.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        // BACKUP BUNDLE
+        async function downloadBackup() {
+            try {
+                const res = await fetchWithAuth('/api/backup');
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'campus_ar_backup.json';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } catch (err) {
+                alert("Backup failed. Check console.");
+            }
+        }
+    </script>
+</body>
+</html>

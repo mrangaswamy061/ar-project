@@ -1,0 +1,44 @@
+{
+  "destinations": [
+    {
+      "id": "bca_classroom",
+      "name": "1st Year BCA Classroom",
+      "type": "video",
+      "video_time": 75.0,
+      "ar_rot": "0 0 90",
+      "instructions": "Turn Left for 1st Year BCA Classroom"
+    },
+    {
+      "id": "staff_room",
+      "name": "Staff Room",
+      "type": "video",
+      "video_time": 82.0,
+      "ar_rot": "0 0 90",
+      "instructions": "Turn Left, then Right for Staff Room"
+    },
+    {
+      "id": "meeting_room",
+      "name": "Meeting Room",
+      "type": "video",
+      "video_time": 95.0,
+      "ar_rot": "0 0 0",
+      "instructions": "Go Straight & Down Stairs for Meeting Room"
+    },
+    {
+      "id": "academic_director",
+      "name": "Academic Director",
+      "type": "video",
+      "video_time": 116.0,
+      "ar_rot": "0 0 0",
+      "instructions": "Go Straight, Down Stairs & Turn Right for Academic Director"
+    },
+    {
+      "id": "main_office",
+      "name": "Main Office",
+      "type": "arrow",
+      "video_time": 68.0,
+      "ar_rot": "0 0 -90",
+      "instructions": "Turn Right for Main Office"
+    }
+  ]
+}
