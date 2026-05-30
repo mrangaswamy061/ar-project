@@ -38,7 +38,9 @@ window.addEventListener('load', async () => {
     // Fetch dynamic configurations without blocking the UI
     async function fetchNavigationData() {
         try {
-            const response = await fetch('/api/navigation-config');
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
+            const API_BASE = isLocal ? 'http://localhost:5000' : '';
+            const response = await fetch(`${API_BASE}/api/navigation-config`);
             if (response.ok) {
                 const configData = await response.json();
                 configData.destinations.forEach(dest => {
@@ -306,7 +308,9 @@ window.addEventListener('load', async () => {
     }
 
     function logTelemetry(destinationName, mode) {
-        fetch('/api/telemetry/log', {
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
+        const API_BASE = isLocal ? 'http://localhost:5000' : '';
+        fetch(`${API_BASE}/api/telemetry/log`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

@@ -217,8 +217,10 @@
         async function login() {
             const user = document.getElementById('admin-user').value;
             const pass = document.getElementById('admin-pass').value;
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
+            const API_BASE = isLocal ? 'http://localhost:5000' : '';
             try {
-                const res = await fetch('/api/login', {
+                const res = await fetch(`${API_BASE}/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: user, password: pass })
@@ -254,8 +256,10 @@
 
         // FETCH WRAPPER (Adds Token)
         async function fetchWithAuth(url, options = {}) {
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
+            const API_BASE = isLocal ? 'http://localhost:5000' : '';
             options.headers = { ...options.headers, 'Authorization': `Bearer ${authToken}` };
-            const res = await fetch(url, options);
+            const res = await fetch(API_BASE + url, options);
             if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
             return res;
         }
@@ -305,8 +309,10 @@
 
         // CMS LOAD
         async function loadCMS() {
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
+            const API_BASE = isLocal ? 'http://localhost:5000' : '';
             try {
-                const res = await fetch('/api/navigation-config'); // Public endpoint in this setup
+                const res = await fetch(`${API_BASE}/api/navigation-config`); // Public endpoint in this setup
                 const data = await res.json();
                 
                 document.getElementById('cms-table').innerHTML = data.destinations.map(d => `
