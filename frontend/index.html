@@ -6,7 +6,8 @@
     <title>Campus AR - Visual Recognition</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
+    <!-- Use standard AR.js which includes Location-Based tracking instead of NFT -->
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <link rel="stylesheet" href="./style.css">
     
     <style>
@@ -104,8 +105,9 @@
 
     <!-- Dev Sandbox Simulation Dashboard -->
     <div id="dev-sandbox" style="position: absolute; top: 15px; right: 15px; z-index: 100002; display: flex; flex-direction: column; gap: 8px;">
-        <button id="sim-found-btn" style="background: rgba(16, 185, 129, 0.95); color: white; border: none; padding: 10px 15px; border-radius: 8px; font-weight: bold; font-family: 'Outfit'; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-size: 0.9rem; transition: transform 0.2s;">⚡ Simulate Location Found</button>
-        <button id="sim-lost-btn" class="hidden" style="background: rgba(239, 68, 68, 0.95); color: white; border: none; padding: 10px 15px; border-radius: 8px; font-weight: bold; font-family: 'Outfit'; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-size: 0.9rem; transition: transform 0.2s;">⚠️ Simulate Wrong Direction</button>
+        <button id="sim-found-btn" style="background: rgba(16, 185, 129, 0.95); color: white; border: none; padding: 10px 15px; border-radius: 8px; font-weight: bold; font-family: 'Outfit'; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-size: 0.9rem; transition: transform 0.2s;">⚡ Simulate GPS Connected</button>
+        <button id="sim-arrive-btn" class="hidden" style="background: rgba(139, 92, 246, 0.95); color: white; border: none; padding: 10px 15px; border-radius: 8px; font-weight: bold; font-family: 'Outfit'; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-size: 0.9rem; transition: transform 0.2s;">🎯 Simulate Arrival</button>
+        <button id="sim-lost-btn" class="hidden" style="background: rgba(239, 68, 68, 0.95); color: white; border: none; padding: 10px 15px; border-radius: 8px; font-weight: bold; font-family: 'Outfit'; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-size: 0.9rem; transition: transform 0.2s;">⚠️ Simulate GPS Lost</button>
     </div>
 
     <!-- Fullscreen Video Player (Hidden initially) -->
@@ -142,16 +144,16 @@
     <div id="error-overlay" class="glass-panel error-panel hidden">
         <div class="icon">❌</div>
         <div class="text-content">
-            <h2 id="error-title">Location Not Matched! ❌</h2>
-            <p id="error-desc">Please point your camera directly at the nearest location marker to align and view directions.</p>
+            <h2 id="error-title">Getting GPS Signal... 🛰️</h2>
+            <p id="error-desc">Please step outside or wait a moment while we acquire your GPS coordinates.</p>
         </div>
     </div>
 
     <div id="success-overlay" class="glass-panel success-panel hidden">
         <div class="icon">✅</div>
         <div class="text-content">
-            <h2 id="location-name">Location Found</h2>
-            <p>Select your destination below!</p>
+            <h2 id="location-name">GPS Connected!</h2>
+            <p>Select your destination below to start tracking.</p>
         </div>
     </div>
 
@@ -175,7 +177,7 @@
         vr-mode-ui="enabled: false"
         renderer="logarithmicDepthBuffer: true; antialias: true; alpha: true;"
         embedded
-        arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;">
+        arjs="sourceType: webcam; debugUIEnabled: false;">
 
         <!-- Developer Sandbox 3D Simulation Elements (Always Visible, attached to scene) -->
         <a-entity id="sim-arrow-model" rotation="90 0 0" position="0 -9999 -150" scale="0.5 0.5 0.5">
@@ -192,35 +194,32 @@
             align="center">
         </a-text>
 
-        <a-nft
-            type="nft"
-            url="./location_marker"
-            smooth="true"
-            smoothCount="10"
-            smoothTolerance=".01"
-            smoothThreshold="5"
-            id="nft-marker-1"
-            data-location="Vidya Pre-Primary Entrance">
-
-            <!-- 3D Arrow (Hidden Underground) -->
-            <a-entity id="arrow-model" rotation="0 0 0" position="0 -9999 0">
+        <!-- 3D Destination Pin (Location-Based GPS Entity) -->
+        <a-entity 
+            id="destination-pin" 
+            gps-entity-place="latitude: 0; longitude: 0;"
+            visible="false">
+            
+            <!-- A massive floating 3D arrow/pin to mark the physical location -->
+            <a-entity id="arrow-model" rotation="0 0 0" position="0 0 0">
                 <a-cone color="#10B981" radius-bottom="30" radius-top="0" height="60" position="0 150 0" rotation="-90 0 0"></a-cone>
                 <a-cylinder color="#10B981" radius="15" height="100" position="0 50 0" rotation="-90 0 0"></a-cylinder>
             </a-entity>
             
             <a-text 
                 id="nav-instruction"
-                value="Select a destination" 
+                value="Destination" 
                 color="#ffffff" 
                 scale="150 150 150" 
-                position="0 -9999 0"
+                position="0 250 0"
                 align="center"
-                rotation="-90 0 0">
+                rotation="-90 0 0"
+                look-at="[gps-camera]">
             </a-text>
-
-        </a-nft>
+        </a-entity>
         
-        <a-entity camera></a-entity>
+        <!-- GPS Camera tracks the user's phone location -->
+        <a-camera gps-camera rotation-reader></a-camera>
     </a-scene>
 
     <script type="module" src="./main.js"></script>

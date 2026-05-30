@@ -6,7 +6,9 @@ const destinationSchema = new mongoose.Schema({
     type: { type: String, required: true },
     video_time: { type: Number },
     ar_rot: { type: String },
-    instructions: { type: String }
+    instructions: { type: String },
+    lat: { type: Number },
+    lng: { type: Number }
 }, { timestamps: true });
 
 const Destination = mongoose.model('Destination', destinationSchema);

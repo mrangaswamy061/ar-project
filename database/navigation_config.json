@@ -6,7 +6,9 @@
       "type": "video",
       "video_time": 75.0,
       "ar_rot": "0 90 0",
-      "instructions": "Turn Left for 1st Year BCA Classroom"
+      "instructions": "Turn Left for 1st Year BCA Classroom",
+      "lat": 0,
+      "lng": 0
     },
     {
       "id": "staff_room",
@@ -14,7 +16,9 @@
       "type": "video",
       "video_time": 82.0,
       "ar_rot": "0 90 0",
-      "instructions": "Turn Left, then Right for Staff Room"
+      "instructions": "Turn Left, then Right for Staff Room",
+      "lat": 0,
+      "lng": 0
     },
     {
       "id": "meeting_room",
@@ -22,7 +26,9 @@
       "type": "video",
       "video_time": 95.0,
       "ar_rot": "0 0 0",
-      "instructions": "Go Straight & Down Stairs for Meeting Room"
+      "instructions": "Go Straight & Down Stairs for Meeting Room",
+      "lat": 0,
+      "lng": 0
     },
     {
       "id": "academic_director",
@@ -30,7 +36,9 @@
       "type": "video",
       "video_time": 116.0,
       "ar_rot": "0 0 0",
-      "instructions": "Go Straight, Down Stairs & Turn Right for Academic Director"
+      "instructions": "Go Straight, Down Stairs & Turn Right for Academic Director",
+      "lat": 0,
+      "lng": 0
     },
     {
       "id": "main_office",
@@ -38,7 +46,9 @@
       "type": "arrow",
       "video_time": 68.0,
       "ar_rot": "0 -90 0",
-      "instructions": "Turn Right for Main Office"
+      "instructions": "Turn Right for Main Office",
+      "lat": 0,
+      "lng": 0
     }
   ]
 }

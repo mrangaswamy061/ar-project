@@ -96,19 +96,12 @@ window.addEventListener('load', async () => {
         // Show developer sandbox for simulating markers
         if (devSandbox) devSandbox.style.display = 'flex';
 
-        // In AR Mode, check if the location marker is already found
-        if (isLocationIdentified) {
-            errorOverlay.classList.add('hidden');
-            successOverlay.classList.remove('hidden');
-            navMenu.classList.remove('hidden');
-        } else {
-            // Prompt to point camera at a location marker
-            errorOverlay.classList.remove('hidden');
-            const errTitle = document.getElementById('error-title');
-            const errDesc = document.getElementById('error-desc');
-            if (errTitle) errTitle.innerText = "Identify Location 📷";
-            if (errDesc) errDesc.innerText = "Point your camera at a nearby location marker to unlock navigation directions.";
-        }
+        // In AR Mode, prompt user that GPS is initializing
+        errorOverlay.classList.remove('hidden');
+        const errTitle = document.getElementById('error-title');
+        const errDesc = document.getElementById('error-desc');
+        if (errTitle) errTitle.innerText = "Getting GPS Signal... 🛰️";
+        if (errDesc) errDesc.innerText = "Please step outside or wait a moment while we acquire your GPS coordinates.";
     });
 
     globalBackBtn.addEventListener('click', () => {
@@ -228,59 +221,77 @@ window.addEventListener('load', async () => {
     const arjsLoader = document.querySelector('.arjs-loader');
     if (arjsLoader) arjsLoader.style.display = 'none';
 
-    window.addEventListener('arjs-nft-loaded', (ev) => {
+    window.addEventListener('gps-camera-update-position', async (e) => {
         loader.classList.add('hidden');
-        // Only show location not matched if user is actively in AR mode and marker isn't found
-        if (currentMode === 'ar' && !isLocationIdentified) {
-            errorOverlay.classList.remove('hidden');
+        if (!isLocationIdentified) {
+            isLocationIdentified = true;
+            if (currentMode === 'ar') {
+                errorOverlay.classList.add('hidden');
+                successOverlay.classList.remove('hidden');
+                navMenu.classList.remove('hidden');
+            }
+        }
+
+        // If we are actively navigating, check distance to destination
+        if (isNavigating && currentMode === 'ar' && activeDestination) {
+            const destConfig = navigationConfig[activeDestination];
+            if (destConfig && destConfig.lat && destConfig.lng) {
+                // Calculate distance using Haversine formula
+                const distance = calculateDistance(
+                    e.detail.position.latitude, 
+                    e.detail.position.longitude,
+                    destConfig.lat,
+                    destConfig.lng
+                );
+                
+                // Calculate bearing to update the compass direction text
+                targetHeading = calculateBearing(
+                    e.detail.position.latitude, 
+                    e.detail.position.longitude,
+                    destConfig.lat,
+                    destConfig.lng
+                );
+                
+                // If within 10 meters, show Arrival screen!
+                if (distance < 10) {
+                    htmlInstructionBar.classList.add('hidden');
+                    const destRoomSpan = document.getElementById('dest-room-name');
+                    if (destRoomSpan) destRoomSpan.innerText = destConfig.name;
+                    destinationOverlay.classList.remove('hidden');
+                    // Stop navigation to prevent spamming
+                    isNavigating = false;
+                }
+            }
         }
     });
 
-    const sceneEl = document.querySelector('a-scene');
-    if (sceneEl.hasLoaded) {
-        setupMarkers();
-    } else {
-        sceneEl.addEventListener('loaded', setupMarkers);
+    // Haversine distance formula (returns distance in meters)
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371e3; // Earth radius in meters
+        const φ1 = lat1 * Math.PI/180;
+        const φ2 = lat2 * Math.PI/180;
+        const Δφ = (lat2-lat1) * Math.PI/180;
+        const Δλ = (lon2-lon1) * Math.PI/180;
+
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                  Math.cos(φ1) * Math.cos(φ2) *
+                  Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        return R * c;
     }
 
-    function setupMarkers() {
-        const nftMarkers = document.querySelectorAll('a-nft');
+    // Calculate initial bearing from point A to point B
+    function calculateBearing(lat1, lon1, lat2, lon2) {
+        const φ1 = lat1 * Math.PI/180;
+        const φ2 = lat2 * Math.PI/180;
+        const Δλ = (lon2-lon1) * Math.PI/180;
 
-        nftMarkers.forEach(marker => {
-            marker.addEventListener('markerFound', (e) => {
-                const locName = marker.getAttribute('data-location') || 'Recognized Location';
-                locationName.innerText = locName;
-                isLocationIdentified = true;
-                
-                if (currentMode === 'ar') {
-                    errorOverlay.classList.add('hidden');
-                    successOverlay.classList.remove('hidden');
-                    navMenu.classList.remove('hidden');
-                }
-            });
+        const y = Math.sin(Δλ) * Math.cos(φ2);
+        const x = Math.cos(φ1)*Math.sin(φ2) - Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
+        const θ = Math.atan2(y, x);
 
-            marker.addEventListener('markerLost', (e) => {
-                isLocationIdentified = false;
-                
-                if (currentMode === 'ar') {
-                    successOverlay.classList.add('hidden');
-                    navMenu.classList.add('hidden');
-                    errorOverlay.classList.remove('hidden');
-                    htmlInstructionBar.classList.add('hidden');
-                    
-                    const errTitle = document.getElementById('error-title');
-                    const errDesc = document.getElementById('error-desc');
-                    if (errTitle) errTitle.innerText = "Location Not Matched! ❌";
-                    if (errDesc) errDesc.innerText = "Please point your camera directly at the nearest location marker to align and view directions.";
-                    
-                    // Hide simulated elements too, just in case
-                    const simArrowModel = document.getElementById('sim-arrow-model');
-                    const simNavInstruction = document.getElementById('sim-nav-instruction');
-                    if (simArrowModel) simArrowModel.setAttribute('position', '0 -9999 -150');
-                    if (simNavInstruction) simNavInstruction.setAttribute('position', '0 -9999 -150');
-                }
-            });
-        });
+        return (θ * 180/Math.PI + 360) % 360;
     }
 
     // ==========================================
@@ -380,10 +391,19 @@ window.addEventListener('load', async () => {
         else {
             htmlVideoPlayer.pause();
             videoOverlay.classList.add('hidden');
+            activeDestination = destConfig.id;
             
-            arrowModel.setAttribute('position', '0 0 0'); // Move arrow above ground
-            const rotation = destConfig.ar_rot || "0 0 0";
-            arrowModel.setAttribute('animation', `property: rotation; to: ${rotation}; dur: 800; easing: easeInOutQuad`);
+            const destPin = document.getElementById('destination-pin');
+            if (destPin) {
+                // Set the exact GPS coordinates of the destination
+                const lat = destConfig.lat || 0;
+                const lng = destConfig.lng || 0;
+                destPin.setAttribute('gps-entity-place', `latitude: ${lat}; longitude: ${lng};`);
+                destPin.setAttribute('visible', 'true');
+            }
+            
+            // Show the "Simulate Arrival" button in sandbox
+            simArriveBtn.classList.remove('hidden');
         }
 
         // Apply simulation arrow animation (for PC sandbox testing mode)
@@ -465,8 +485,10 @@ window.addEventListener('load', async () => {
     // ==========================================
     // DEVELOPER SANDBOX SIMULATION LOGIC
     // ==========================================
+    const devSandbox = document.getElementById('dev-sandbox');
     const simFoundBtn = document.getElementById('sim-found-btn');
     const simLostBtn = document.getElementById('sim-lost-btn');
+    const simArriveBtn = document.getElementById('sim-arrive-btn');
 
     simFoundBtn.addEventListener('click', () => {
         isLocationIdentified = true;
@@ -479,17 +501,20 @@ window.addEventListener('load', async () => {
             errorOverlay.classList.add('hidden');
             successOverlay.classList.remove('hidden');
             navMenu.classList.remove('hidden');
+            simFoundBtn.classList.add('hidden');
+            simLostBtn.classList.remove('hidden');
         }
+    });
 
-        // Move standard AR elements into view as if marker is found
-        arrowModel.setAttribute('position', '0 0 0');
-        navInstruction.setAttribute('position', '0 250 0');
-        navInstruction.setAttribute('value', 'Select a destination below');
-
-        isNavigating = false; // pause orientation warnings in initial simulated start
-
-        simFoundBtn.classList.add('hidden');
-        simLostBtn.classList.remove('hidden');
+    simArriveBtn.addEventListener('click', () => {
+        if (isNavigating && currentMode === 'ar' && activeDestination) {
+            const destConfig = navigationConfig[activeDestination];
+            htmlInstructionBar.classList.add('hidden');
+            const destRoomSpan = document.getElementById('dest-room-name');
+            if (destRoomSpan) destRoomSpan.innerText = destConfig.name || 'Destination';
+            destinationOverlay.classList.remove('hidden');
+            isNavigating = false;
+        }
     });
 
     simLostBtn.addEventListener('click', () => {
@@ -503,15 +528,15 @@ window.addEventListener('load', async () => {
 
             const errTitle = document.getElementById('error-title');
             const errDesc = document.getElementById('error-desc');
-            if (errTitle) errTitle.innerText = "Location Not Matched! ❌";
-            if (errDesc) errDesc.innerText = "Please point your camera directly at the nearest location marker to align and view directions.";
+            if (errTitle) errTitle.innerText = "GPS Signal Lost! ❌";
+            if (errDesc) errDesc.innerText = "Please step outside or wait a moment while we re-acquire your GPS coordinates.";
         }
 
         isNavigating = false;
 
         // Hide AR elements
-        arrowModel.setAttribute('position', '0 -9999 0');
-        navInstruction.setAttribute('position', '0 -9999 0');
+        const destPin = document.getElementById('destination-pin');
+        if (destPin) destPin.setAttribute('visible', 'false');
 
         // Hide simulated AR elements
         const simArrowModel = document.getElementById('sim-arrow-model');
