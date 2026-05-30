@@ -5,7 +5,7 @@
       "name": "1st Year BCA Classroom",
       "type": "video",
       "video_time": 75.0,
-      "ar_rot": "0 0 90",
+      "ar_rot": "0 90 0",
       "instructions": "Turn Left for 1st Year BCA Classroom"
     },
     {
@@ -13,7 +13,7 @@
       "name": "Staff Room",
       "type": "video",
       "video_time": 82.0,
-      "ar_rot": "0 0 90",
+      "ar_rot": "0 90 0",
       "instructions": "Turn Left, then Right for Staff Room"
     },
     {
@@ -37,7 +37,7 @@
       "name": "Main Office",
       "type": "arrow",
       "video_time": 68.0,
-      "ar_rot": "0 0 -90",
+      "ar_rot": "0 -90 0",
       "instructions": "Turn Right for Main Office"
     }
   ]

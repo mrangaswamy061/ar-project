@@ -342,10 +342,11 @@ window.addEventListener('load', async () => {
 
         // Set up compass navigation target heading
         const rotationStr = destConfig.ar_rot || "0 0 0";
-        const zRot = parseInt(rotationStr.split(" ")[2]) || 0;
+        // Parse the Y-axis rotation (index 1) for left/right turns
+        const yRot = parseInt(rotationStr.split(" ")[1]) || 0;
         
-        // Map A-Frame z-axis rotation to compass angles (0 to 360)
-        targetHeading = (zRot + 360) % 360;
+        // Map A-Frame y-axis rotation to compass angles (0 to 360)
+        targetHeading = (yRot + 360) % 360;
         initialHeading = null; // recalibrate starting point
         isNavigating = true;
 
@@ -396,9 +397,9 @@ window.addEventListener('load', async () => {
                 simNavInstruction.setAttribute('position', '0 60 -150');
                 simNavInstruction.setAttribute('value', instructionText);
                 
-                // Convert Z rotation (0 0 Z) to simulated Y rotation (90 Y 0) because the simulation
+                // Use the parsed Y rotation directly in the simulation
                 // arrow parent is rotated 90 on X to lie flat on A-Frame's default X-Z ground plane.
-                const simRotation = `90 ${zRot} 0`;
+                const simRotation = `90 ${yRot} 0`;
                 simArrowModel.setAttribute('animation', `property: rotation; to: ${simRotation}; dur: 800; easing: easeInOutQuad`);
             }
         }
