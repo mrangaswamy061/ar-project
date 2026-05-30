@@ -22,6 +22,16 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'sachin123';
 app.use(cors());
 app.use(express.json());
 
+// Ensure DB connection for serverless
+app.use(async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (err) {
+        res.status(500).json({ error: 'Database connection failed' });
+    }
+});
+
 // Simple Auth Middleware
 const requireAuth = (req, res, next) => {
     const authHeader = req.headers.authorization;
@@ -194,10 +204,10 @@ app.get('/dashboard', (req, res) => {
 // ==========================================
 // START SERVER / EXPORT FOR VERCEL
 // ==========================================
-await connectDB();
 
 if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => {
+    app.listen(PORT, async () => {
+        await connectDB();
         console.log(`✅ Backend Server running on http://localhost:${PORT}`);
         console.log(`➡️ Analytics Dashboard: http://localhost:${PORT}/dashboard`);
     });
