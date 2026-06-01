@@ -122,6 +122,8 @@ window.addEventListener('load', async () => {
         // 4. Hide 3D AR elements
         arrowModel.setAttribute('position', '0 -9999 0');
         navInstruction.setAttribute('position', '0 -9999 0');
+        const hudNavGroup = document.getElementById('hud-nav-group');
+        if (hudNavGroup) hudNavGroup.setAttribute('visible', 'false');
         
         // 5. Hide simulated PC sandbox elements
         const simArrowModel = document.getElementById('sim-arrow-model');
@@ -251,6 +253,9 @@ window.addEventListener('load', async () => {
                     destConfig.lat,
                     destConfig.lng
                 );
+                
+                const hudDistance = document.getElementById('hud-nav-distance');
+                if (hudDistance) hudDistance.setAttribute('value', `${Math.round(distance)}m`);
                 
                 // If within 10 meters, show Arrival screen!
                 if (distance < 10) {
@@ -402,6 +407,9 @@ window.addEventListener('load', async () => {
                 destPin.setAttribute('visible', 'true');
             }
             
+            const hudNavGroup = document.getElementById('hud-nav-group');
+            if (hudNavGroup) hudNavGroup.setAttribute('visible', 'true');
+            
             // Show the "Simulate Arrival" button in sandbox
             simArriveBtn.classList.remove('hidden');
         }
@@ -465,12 +473,11 @@ window.addEventListener('load', async () => {
             
             if (errTitle) errTitle.innerText = "Wrong Direction! 🔄";
             if (errDesc) {
-                let alignmentText = "Please turn around to regain the path.";
-                if (targetHeading === 90) alignmentText = "Wrong Direction! Please turn LEFT to face the corridor.";
-                else if (targetHeading === 270) alignmentText = "Wrong Direction! Please turn RIGHT to face the Main Office.";
-                else if (targetHeading === 0) alignmentText = "Wrong Direction! Please face STRAIGHT forward.";
-                else if (targetHeading === 180) alignmentText = "Wrong Direction! Please turn BEHIND you.";
-                errDesc.innerText = alignmentText;
+                let turnAngle = (targetHeading - relativeHeading + 360) % 360;
+                let directionWord = "turn around";
+                if (turnAngle > 20 && turnAngle <= 160) directionWord = "turn RIGHT";
+                else if (turnAngle >= 200 && turnAngle < 340) directionWord = "turn LEFT";
+                errDesc.innerText = `You are facing the wrong way. Please ${directionWord} to face the destination.`;
             }
             
             // Hide normal navigation overlays
@@ -537,6 +544,8 @@ window.addEventListener('load', async () => {
         // Hide AR elements
         const destPin = document.getElementById('destination-pin');
         if (destPin) destPin.setAttribute('visible', 'false');
+        const hudNavGroup = document.getElementById('hud-nav-group');
+        if (hudNavGroup) hudNavGroup.setAttribute('visible', 'false');
 
         // Hide simulated AR elements
         const simArrowModel = document.getElementById('sim-arrow-model');
