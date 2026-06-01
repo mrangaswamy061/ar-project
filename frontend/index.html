@@ -219,8 +219,8 @@
             </a-text>
         </a-entity>
         
-        <!-- GPS Camera tracks the user's phone location with relaxed accuracy thresholds for indoor/weak signals -->
-        <a-camera gps-camera="minAccuracy: 1000; gpsMinDistance: 1;" rotation-reader>
+        <!-- GPS Camera tracks the user's phone location with greatly relaxed accuracy thresholds for indoor/weak signals -->
+        <a-camera gps-camera="minAccuracy: 10000; gpsMinDistance: 1;" rotation-reader>
             <!-- Dynamic HUD Arrow & Distance Text -->
             <a-entity id="hud-nav-group" position="0 -0.3 -1.5" visible="false">
                 <!-- Inner entity points to the destination -->

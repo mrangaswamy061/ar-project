@@ -359,9 +359,12 @@ window.addEventListener('load', async () => {
         htmlInstructionBar.classList.remove('hidden');
 
         // Add timeout warning if GPS takes too long (10 seconds)
-        setTimeout(() => {
+        let gpsTimeout = setTimeout(() => {
             if (targetHeading === null) {
-                htmlInstructionText.innerText = "GPS Signal is weak. Please step outside or ensure Location is ON...";
+                htmlInstructionText.innerHTML = `GPS Signal is weak or stuck. <button id="force-sim-btn" style="background:#10B981; border:none; padding:5px 10px; border-radius:5px; color:white; font-family:'Outfit'; cursor:pointer; margin-left:10px;">Click to Force Simulation</button>`;
+                document.getElementById('force-sim-btn')?.addEventListener('click', () => {
+                    document.getElementById('sim-found-btn')?.click();
+                });
             }
         }, 10000);
 
@@ -526,15 +529,23 @@ window.addEventListener('load', async () => {
     const simArriveBtn = document.getElementById('sim-arrive-btn');
 
     simFoundBtn.addEventListener('click', () => {
-        isLocationIdentified = true;
+        // Dispatch a fake GPS event to bypass AR.js location waiting completely
+        const fakeGpsEvent = new CustomEvent('gps-camera-update-position', {
+            detail: {
+                position: {
+                    latitude: 13.336820,
+                    longitude: 77.130120
+                }
+            }
+        });
+        window.dispatchEvent(fakeGpsEvent);
 
-        // Simulate markerFound
+        // Simulate markerFound UI logic
         loader.classList.add('hidden');
         locationName.innerText = "GPS Connected (Simulated)";
         
         if (currentMode === 'ar') {
             errorOverlay.classList.add('hidden');
-            // successOverlay is no longer shown to avoid blocking UX
             simFoundBtn.classList.add('hidden');
             simLostBtn.classList.remove('hidden');
         }
