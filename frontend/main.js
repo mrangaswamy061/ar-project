@@ -249,6 +249,13 @@ window.addEventListener('load', async () => {
                 const hudDistance = document.getElementById('hud-nav-distance');
                 if (hudDistance) hudDistance.setAttribute('value', `${Math.round(distance)}m`);
                 
+                // Dynamically update textual instruction using GPS
+                htmlInstructionText.innerText = `Navigating to ${destConfig.name} (${Math.round(distance)}m)`;
+                
+                // Show the HUD arrow since we now have GPS lock
+                const hudNavArrow = document.getElementById('hud-nav-arrow');
+                if (hudNavArrow) hudNavArrow.setAttribute('visible', 'true');
+                
                 // If within 10 meters, show Arrival screen!
                 if (distance < 10) {
                     htmlInstructionBar.classList.add('hidden');
@@ -346,23 +353,18 @@ window.addEventListener('load', async () => {
         // Log to backend analytics dashboard
         logTelemetry(destConfig.name, currentMode);
 
-        const instructionText = destConfig.instructions;
-        navInstruction.setAttribute('position', '0 250 0');
-        navInstruction.setAttribute('value', instructionText);
-
-        // Display in the standard HTML instruction bar for easy desktop testing
-        htmlInstructionText.innerText = instructionText;
+        // We do not use static instruction text anymore, we use GPS!
+        htmlInstructionText.innerText = "Acquiring GPS Signal to calculate route...";
         htmlInstructionBar.classList.remove('hidden');
 
-        // Set up compass navigation target heading
-        const rotationStr = destConfig.ar_rot || "0 0 0";
-        // Parse the Y-axis rotation (index 1) for left/right turns
-        const yRot = parseInt(rotationStr.split(" ")[1]) || 0;
-        
-        // Map A-Frame y-axis rotation to compass angles (0 to 360)
-        targetHeading = (yRot + 360) % 360;
+        // Target heading will be calculated dynamically via GPS
+        targetHeading = null;
         initialHeading = null; // recalibrate starting point
         isNavigating = true;
+
+        // Hide HUD arrow until GPS locks
+        const hudNavArrow = document.getElementById('hud-nav-arrow');
+        if (hudNavArrow) hudNavArrow.setAttribute('visible', 'false');
 
         // Request mobile sensors permission
         requestOrientationPermission();
@@ -449,7 +451,7 @@ window.addEventListener('load', async () => {
     }
 
     function handleOrientation(event) {
-        if (!isNavigating || event.alpha === null) return;
+        if (!isNavigating || event.alpha === null || targetHeading === null) return;
 
         if (initialHeading === null) {
             initialHeading = event.alpha;
