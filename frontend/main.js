@@ -455,6 +455,14 @@ window.addEventListener('load', async () => {
         // Calculate angular difference between relativeHeading and targetHeading
         let diff = Math.abs(relativeHeading - targetHeading);
         if (diff > 180) diff = 360 - diff;
+        
+        let turnAngle = (targetHeading - relativeHeading + 360) % 360;
+        
+        // Dynamically rotate the HUD arrow based on compass (much more reliable than GPS look-at)
+        const hudNavArrow = document.getElementById('hud-nav-arrow');
+        if (hudNavArrow) {
+            hudNavArrow.setAttribute('rotation', `0 ${-turnAngle} 0`);
+        }
 
         // If user deviates by more than 60 degrees from correct navigation direction
         if (diff > 60) {
@@ -465,7 +473,6 @@ window.addEventListener('load', async () => {
             
             if (errTitle) errTitle.innerText = "Wrong Direction! 🔄";
             if (errDesc) {
-                let turnAngle = (targetHeading - relativeHeading + 360) % 360;
                 let directionWord = "turn around";
                 if (turnAngle > 20 && turnAngle <= 160) directionWord = "turn RIGHT";
                 else if (turnAngle >= 200 && turnAngle < 340) directionWord = "turn LEFT";

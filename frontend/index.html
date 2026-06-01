@@ -222,15 +222,15 @@
         <!-- GPS Camera tracks the user's phone location -->
         <a-camera gps-camera rotation-reader>
             <!-- Dynamic HUD Arrow & Distance Text -->
-            <a-entity id="hud-nav-group" position="0 -0.5 -3" visible="false">
+            <a-entity id="hud-nav-group" position="0 -0.3 -1.5" visible="false">
                 <!-- Inner entity points to the destination -->
-                <a-entity id="hud-nav-arrow" look-at="#destination-pin">
+                <a-entity id="hud-nav-arrow">
                     <!-- Arrow model pointing along -Z towards the target -->
                     <a-cone color="#10B981" radius-bottom="0.08" radius-top="0" height="0.3" rotation="90 0 0" position="0 0 -0.15"></a-cone>
                     <a-cylinder color="#10B981" radius="0.04" height="0.3" rotation="90 0 0" position="0 0 0.15"></a-cylinder>
                 </a-entity>
                 <!-- Distance label attached below the arrow -->
-                <a-text id="hud-nav-distance" value="" align="center" color="#ffffff" position="0 -0.4 0" scale="0.8 0.8 0.8" font="kelsonsans"></a-text>
+                <a-text id="hud-nav-distance" value="" align="center" color="#ffffff" position="0 -0.4 0" scale="0.5 0.5 0.5" font="kelsonsans"></a-text>
             </a-entity>
         </a-camera>
     </a-scene>
