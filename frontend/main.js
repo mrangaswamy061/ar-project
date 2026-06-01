@@ -355,7 +355,29 @@ window.addEventListener('load', async () => {
 
         // We do not use static instruction text anymore, we use GPS!
         htmlInstructionText.innerText = "Acquiring GPS Signal to calculate route...";
+        htmlInstructionText.style.color = "white";
         htmlInstructionBar.classList.remove('hidden');
+
+        // Add timeout warning if GPS takes too long (10 seconds)
+        setTimeout(() => {
+            if (targetHeading === null) {
+                htmlInstructionText.innerText = "GPS Signal is weak. Please step outside or ensure Location is ON...";
+            }
+        }, 10000);
+
+        // Explicitly check for GPS permission errors
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                () => {}, 
+                (err) => {
+                    if (err.code === err.PERMISSION_DENIED) {
+                        htmlInstructionText.innerText = "⚠️ Location permission denied! Please allow GPS in browser.";
+                        htmlInstructionText.style.color = "#ef4444";
+                    }
+                },
+                { enableHighAccuracy: true, timeout: 5000 }
+            );
+        }
 
         // Target heading will be calculated dynamically via GPS
         targetHeading = null;
