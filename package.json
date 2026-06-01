@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "cd frontend && npm install && npm run build && cd .. && rm -rf public && cp -r frontend/dist public",
+    "build": "cd frontend && npm install && npm run build && cd .. && rm -rf dist public && cp -r frontend/dist dist",
     "dev": "cd frontend && npm run dev"
   },
   "dependencies": {
