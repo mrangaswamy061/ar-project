@@ -368,17 +368,31 @@ window.addEventListener('load', async () => {
             }
         }, 10000);
 
-        // Explicitly check for GPS permission errors
+        // FAST FETCH: Grab a quick, low-accuracy Wi-Fi/Cell location to instantly unblock the UI!
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
-                () => {}, 
+                (position) => {
+                    // Inject this rough coordinate immediately so the user doesn't wait
+                    if (targetHeading === null) {
+                        const fastGpsEvent = new CustomEvent('gps-camera-update-position', {
+                            detail: {
+                                position: {
+                                    latitude: position.coords.latitude,
+                                    longitude: position.coords.longitude
+                                }
+                            }
+                        });
+                        window.dispatchEvent(fastGpsEvent);
+                    }
+                }, 
                 (err) => {
                     if (err.code === err.PERMISSION_DENIED) {
                         htmlInstructionText.innerText = "⚠️ Location permission denied! Please allow GPS in browser.";
                         htmlInstructionText.style.color = "#ef4444";
                     }
                 },
-                { enableHighAccuracy: true, timeout: 5000 }
+                // maximumAge: Infinity and enableHighAccuracy: false ensures INSTANT results
+                { enableHighAccuracy: false, maximumAge: Infinity, timeout: 5000 }
             );
         }
 
