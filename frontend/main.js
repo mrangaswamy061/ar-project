@@ -492,7 +492,6 @@ window.addEventListener('load', async () => {
     // ==========================================
     // DEVELOPER SANDBOX SIMULATION LOGIC
     // ==========================================
-    const devSandbox = document.getElementById('dev-sandbox');
     const simFoundBtn = document.getElementById('sim-found-btn');
     const simLostBtn = document.getElementById('sim-lost-btn');
     const simArriveBtn = document.getElementById('sim-arrive-btn');
