@@ -96,12 +96,11 @@ window.addEventListener('load', async () => {
         // Show developer sandbox for simulating markers
         if (devSandbox) devSandbox.style.display = 'flex';
 
-        // In AR Mode, prompt user that GPS is initializing
-        errorOverlay.classList.remove('hidden');
-        const errTitle = document.getElementById('error-title');
-        const errDesc = document.getElementById('error-desc');
-        if (errTitle) errTitle.innerText = "Getting GPS Signal... 🛰️";
-        if (errDesc) errDesc.innerText = "Please step outside or wait a moment while we acquire your GPS coordinates.";
+        // Bypasses camera scanning overlays, show menu directly
+        loader.classList.add('hidden');
+        errorOverlay.classList.add('hidden');
+        successOverlay.classList.add('hidden');
+        navMenu.classList.remove('hidden');
     });
 
     globalBackBtn.addEventListener('click', () => {
@@ -225,14 +224,7 @@ window.addEventListener('load', async () => {
 
     window.addEventListener('gps-camera-update-position', async (e) => {
         loader.classList.add('hidden');
-        if (!isLocationIdentified) {
-            isLocationIdentified = true;
-            if (currentMode === 'ar') {
-                errorOverlay.classList.add('hidden');
-                successOverlay.classList.remove('hidden');
-                navMenu.classList.remove('hidden');
-            }
-        }
+        isLocationIdentified = true;
 
         // If we are actively navigating, check distance to destination
         if (isNavigating && currentMode === 'ar' && activeDestination) {
@@ -501,12 +493,11 @@ window.addEventListener('load', async () => {
 
         // Simulate markerFound
         loader.classList.add('hidden');
-        locationName.innerText = "Entrance Gate (Simulated)";
+        locationName.innerText = "GPS Connected (Simulated)";
         
         if (currentMode === 'ar') {
             errorOverlay.classList.add('hidden');
-            successOverlay.classList.remove('hidden');
-            navMenu.classList.remove('hidden');
+            // successOverlay is no longer shown to avoid blocking UX
             simFoundBtn.classList.add('hidden');
             simLostBtn.classList.remove('hidden');
         }
@@ -527,8 +518,8 @@ window.addEventListener('load', async () => {
         isLocationIdentified = false;
 
         if (currentMode === 'ar') {
-            successOverlay.classList.add('hidden');
-            navMenu.classList.add('hidden');
+            // Do not hide the nav menu when GPS is lost, let user still select
+            // Just show the error overlay to warn them
             errorOverlay.classList.remove('hidden');
             htmlInstructionBar.classList.add('hidden');
 
