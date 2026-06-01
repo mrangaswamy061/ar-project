@@ -337,6 +337,12 @@ window.addEventListener('load', async () => {
         allBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
+        // Hide the destination list so the user can see the AR directions clearly
+        const navMenu = document.getElementById('nav-menu');
+        if (navMenu) {
+            navMenu.classList.add('hidden');
+        }
+
         // Log to backend analytics dashboard
         logTelemetry(destConfig.name, currentMode);
 
