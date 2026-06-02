@@ -20,7 +20,7 @@ body {
     width: 100vw;
     height: 100vh;
     overflow: hidden;
-    background-color: #000;
+    background-color: transparent; /* CRITICAL: Must be transparent so AR.js webcam video at z-index:-2 is visible */
 }
 
 /* Base Glassmorphism Panel */

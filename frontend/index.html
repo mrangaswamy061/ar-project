@@ -136,7 +136,8 @@
 
     <!-- Fullscreen Video Player (Hidden initially) -->
     <div id="video-overlay" class="hidden">
-        <video id="html-video-player" src="./video.mp4" playsinline muted autoplay></video>
+        <!-- controls added to bypass strict iOS autoplay blocking permanently -->
+        <video id="html-video-player" src="./video.mp4" playsinline muted autoplay controls></video>
         
         <!-- Dynamic Overlay Text (Painted on Floor) -->
         <div id="video-directions-text"></div>
