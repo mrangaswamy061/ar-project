@@ -428,7 +428,12 @@ window.addEventListener('load', async () => {
             // Show the standard Fullscreen HTML video player!
             videoOverlay.classList.remove('hidden');
             htmlVideoPlayer.currentTime = 0; // reset video playback to start
-            htmlVideoPlayer.play().catch(e => console.error("Video Play Error:", e));
+            
+            htmlVideoPlayer.play().catch(e => {
+                console.warn("Autoplay blocked by iOS. Exposing manual play controls.", e);
+                // If iOS strictly blocks autoplay, expose the native play button
+                htmlVideoPlayer.setAttribute('controls', 'true');
+            });
         } 
         // ==========================================
         // LIVE AR NAVIGATION FLOW
