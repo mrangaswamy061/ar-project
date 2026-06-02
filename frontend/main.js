@@ -490,20 +490,30 @@ window.addEventListener('load', async () => {
     }
 
     function handleOrientation(event) {
-        if (!isNavigating || event.alpha === null || targetHeading === null) return;
+        if (!isNavigating || targetHeading === null) return;
 
-        if (initialHeading === null) {
-            initialHeading = event.alpha;
+        let compassHeading = null;
+
+        // iOS devices provide true absolute compass heading here
+        if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
+            compassHeading = event.webkitCompassHeading;
+        } 
+        // Android devices provide absolute heading in alpha if event.absolute is true
+        else if (event.absolute && event.alpha !== null) {
+            compassHeading = 360 - event.alpha; // Android alpha goes counter-clockwise
+        } 
+        // Fallback for some browsers that just provide alpha
+        else if (event.alpha !== null) {
+            compassHeading = 360 - event.alpha;
         }
 
-        // Relative heading of the device camera (0 to 360)
-        let relativeHeading = (event.alpha - initialHeading + 360) % 360;
+        if (compassHeading === null) return;
 
-        // Calculate angular difference between relativeHeading and targetHeading
-        let diff = Math.abs(relativeHeading - targetHeading);
+        // Calculate absolute angular difference between where user is facing and where they need to go
+        let diff = Math.abs(compassHeading - targetHeading);
         if (diff > 180) diff = 360 - diff;
         
-        let turnAngle = (targetHeading - relativeHeading + 360) % 360;
+        let turnAngle = (targetHeading - compassHeading + 360) % 360;
         
         // Dynamically rotate the HUD arrow based on compass (much more reliable than GPS look-at)
         const hudNavArrow = document.getElementById('hud-nav-arrow');
