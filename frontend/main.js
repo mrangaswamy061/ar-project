@@ -405,8 +405,7 @@ window.addEventListener('load', async () => {
         const hudNavArrow = document.getElementById('hud-nav-arrow');
         if (hudNavArrow) hudNavArrow.setAttribute('visible', 'false');
 
-        // Request mobile sensors permission
-        requestOrientationPermission();
+        // (Permissions for compass are now handled natively by A-Frame's look-at component)
 
         // ==========================================
         // VIDEO DIRECTIONS FLOW
@@ -469,79 +468,6 @@ window.addEventListener('load', async () => {
                 const simRotation = `90 ${yRot} 0`;
                 simArrowModel.setAttribute('animation', `property: rotation; to: ${simRotation}; dur: 800; easing: easeInOutQuad`);
             }
-        }
-    }
-
-    // ==========================================
-    // MOBILE DEVICE ORIENTATION (COMPASS) ROUTING
-    // ==========================================
-    function requestOrientationPermission() {
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            DeviceOrientationEvent.requestPermission()
-                .then(permissionState => {
-                    if (permissionState === 'granted') {
-                        window.addEventListener('deviceorientation', handleOrientation, true);
-                    }
-                })
-                .catch(console.error);
-        } else {
-            window.addEventListener('deviceorientation', handleOrientation, true);
-        }
-    }
-
-    function handleOrientation(event) {
-        if (!isNavigating || targetHeading === null) return;
-
-        let compassHeading = null;
-
-        // iOS devices provide true absolute compass heading here
-        if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
-            compassHeading = event.webkitCompassHeading;
-        } 
-        // Android devices provide absolute heading in alpha if event.absolute is true
-        else if (event.absolute && event.alpha !== null) {
-            compassHeading = 360 - event.alpha; // Android alpha goes counter-clockwise
-        } 
-        // Fallback for some browsers that just provide alpha
-        else if (event.alpha !== null) {
-            compassHeading = 360 - event.alpha;
-        }
-
-        if (compassHeading === null) return;
-
-        // Calculate absolute angular difference between where user is facing and where they need to go
-        let diff = Math.abs(compassHeading - targetHeading);
-        if (diff > 180) diff = 360 - diff;
-        
-        let turnAngle = (targetHeading - compassHeading + 360) % 360;
-        
-        // Dynamically rotate the HUD arrow based on compass (much more reliable than GPS look-at)
-        const hudNavArrow = document.getElementById('hud-nav-arrow');
-        if (hudNavArrow) {
-            hudNavArrow.setAttribute('rotation', `0 ${-turnAngle} 0`);
-        }
-
-        // If user deviates by more than 60 degrees from correct navigation direction
-        if (diff > 60) {
-            // Show Wrong Direction overlay
-            errorOverlay.classList.remove('hidden');
-            const errTitle = document.getElementById('error-title');
-            const errDesc = document.getElementById('error-desc');
-            
-            if (errTitle) errTitle.innerText = "Wrong Direction! 🔄";
-            if (errDesc) {
-                let directionWord = "turn around";
-                if (turnAngle > 20 && turnAngle <= 160) directionWord = "turn RIGHT";
-                else if (turnAngle >= 200 && turnAngle < 340) directionWord = "turn LEFT";
-                errDesc.innerText = `You are facing the wrong way. Please ${directionWord} to face the destination.`;
-            }
-            
-            // Hide normal navigation overlays
-            htmlInstructionBar.classList.add('hidden');
-        } else {
-            // Facing the correct direction! Restore HUD
-            errorOverlay.classList.add('hidden');
-            htmlInstructionBar.classList.remove('hidden');
         }
     }
 

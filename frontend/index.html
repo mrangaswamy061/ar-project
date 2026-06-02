@@ -224,7 +224,7 @@
             <!-- Dynamic HUD Arrow & Distance Text -->
             <a-entity id="hud-nav-group" position="0 -0.3 -1.5" visible="false">
                 <!-- Inner entity points to the destination -->
-                <a-entity id="hud-nav-arrow">
+                <a-entity id="hud-nav-arrow" look-at="#destination-pin">
                     <!-- Arrow model pointing along -Z towards the target -->
                     <a-cone color="#10B981" radius-bottom="0.08" radius-top="0" height="0.3" rotation="90 0 0" position="0 0 -0.15"></a-cone>
                     <a-cylinder color="#10B981" radius="0.04" height="0.3" rotation="90 0 0" position="0 0 0.15"></a-cylinder>
