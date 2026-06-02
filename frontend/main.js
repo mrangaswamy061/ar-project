@@ -31,6 +31,15 @@ window.addEventListener('load', async () => {
     let isLocationIdentified = false;
     let activeDestination = 'bca_classroom';
     let initialHeading = null;
+
+    // Handle AR.js Camera Permission Errors gracefully!
+    window.addEventListener('camera-error', (err) => {
+        console.error("Camera denied or failed:", err);
+        const errorOverlay = document.getElementById('camera-error-overlay');
+        if (errorOverlay) {
+            errorOverlay.classList.remove('hidden');
+        }
+    });
     let targetHeading = 0;
     let isNavigating = false;
     let navigationConfig = {}; // Stores fetched dynamic configurations
