@@ -8,8 +8,30 @@
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <!-- Use standard AR.js which includes Location-Based tracking instead of NFT -->
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-    <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
     <link rel="stylesheet" href="./style.css">
+    
+    <script>
+        // Custom A-Frame component to flawlessly rotate the HUD arrow
+        // by reading the already-smoothed AR.js camera compass rotation
+        AFRAME.registerComponent('compass-arrow', {
+            tick: function () {
+                if (window.targetHeading === undefined || window.targetHeading === null) return;
+
+                const cameraEl = document.querySelector('[gps-camera]');
+                if (!cameraEl) return;
+
+                // AR.js maps compass to Y-rotation: North=0, East=-90, South=-180, West=90
+                const cameraY = cameraEl.getAttribute('rotation').y;
+                let compassHeading = -cameraY;
+                compassHeading = (compassHeading % 360 + 360) % 360;
+
+                // Calculate the exact local rotation for the arrow
+                let arrowRotY = compassHeading - window.targetHeading;
+                
+                this.el.setAttribute('rotation', `0 ${arrowRotY} 0`);
+            }
+        });
+    </script>
     
     <style>
         /* Fullscreen Video Overlay */
@@ -223,8 +245,8 @@
         <a-camera gps-camera="minAccuracy: 10000; gpsMinDistance: 1;" rotation-reader>
             <!-- Dynamic HUD Arrow & Distance Text -->
             <a-entity id="hud-nav-group" position="0 -0.3 -1.5" visible="false">
-                <!-- Inner entity points to the destination -->
-                <a-entity id="hud-nav-arrow" look-at="#destination-pin">
+                <!-- Inner entity points to the destination mathematically -->
+                <a-entity id="hud-nav-arrow" compass-arrow>
                     <!-- Arrow model pointing along -Z towards the target -->
                     <a-cone color="#10B981" radius-bottom="0.08" radius-top="0" height="0.3" rotation="90 0 0" position="0 0 -0.15"></a-cone>
                     <a-cylinder color="#10B981" radius="0.04" height="0.3" rotation="90 0 0" position="0 0 0.15"></a-cylinder>

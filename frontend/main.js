@@ -245,6 +245,7 @@ window.addEventListener('load', async () => {
                     destConfig.lat,
                     destConfig.lng
                 );
+                window.targetHeading = targetHeading;
                 
                 const hudDistance = document.getElementById('hud-nav-distance');
                 if (hudDistance) hudDistance.setAttribute('value', `${Math.round(distance)}m`);
@@ -398,6 +399,7 @@ window.addEventListener('load', async () => {
 
         // Target heading will be calculated dynamically via GPS
         targetHeading = null;
+        window.targetHeading = null;
         initialHeading = null; // recalibrate starting point
         isNavigating = true;
 
