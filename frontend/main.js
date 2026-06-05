@@ -7,9 +7,109 @@ window.addEventListener('load', async () => {
     const htmlInstructionBar = document.getElementById('html-instruction-bar');
     const htmlInstructionText = document.getElementById('html-instruction-text');
     
-    // AR Navigation elements
-    const arrowModel = document.getElementById('arrow-model');
-    const navInstruction = document.getElementById('nav-instruction');
+    // AR Navigation element getters (resolved dynamically since scene is lazy-loaded)
+    const getArrowModel = () => document.getElementById('arrow-model');
+    const getNavInstruction = () => document.getElementById('nav-instruction');
+    const getDestPin = () => document.getElementById('destination-pin');
+    const getHudNavGroup = () => document.getElementById('hud-nav-group');
+    const getHudNavArrow = () => document.getElementById('hud-nav-arrow');
+    const getHudDistance = () => document.getElementById('hud-nav-distance');
+    const getSimArrowModel = () => document.getElementById('sim-arrow-model');
+    const getSimNavInstruction = () => document.getElementById('sim-nav-instruction');
+
+    let arSceneElement = null;
+
+    function initARScene() {
+        if (arSceneElement) return; // already initialized
+
+        const container = document.getElementById('ar-scene-container');
+        if (!container) return;
+
+        // Create the scene element
+        const sceneHtml = `
+            <a-scene
+                vr-mode-ui="enabled: false"
+                renderer="logarithmicDepthBuffer: true; antialias: true; alpha: true;"
+                embedded
+                arjs="sourceType: webcam; debugUIEnabled: false;">
+
+                <a-entity id="sim-arrow-model" rotation="90 0 0" position="0 -9999 -150" scale="0.5 0.5 0.5">
+                    <a-cone color="#10B981" radius-bottom="30" radius-top="0" height="60" position="0 150 0" rotation="-90 0 0"></a-cone>
+                    <a-cylinder color="#10B981" radius="15" height="100" position="0 50 0" rotation="-90 0 0"></a-cylinder>
+                </a-entity>
+                
+                <a-text 
+                    id="sim-nav-instruction"
+                    value="Select a destination" 
+                    color="#ffffff" 
+                    scale="4 4 4" 
+                    position="0 -9999 -150"
+                    align="center">
+                </a-text>
+
+                <a-entity 
+                    id="destination-pin" 
+                    gps-entity-place="latitude: 0; longitude: 0;"
+                    visible="false">
+                    
+                    <a-entity id="arrow-model" rotation="0 0 0" position="0 0 0">
+                        <a-cone color="#10B981" radius-bottom="30" radius-top="0" height="60" position="0 150 0" rotation="-90 0 0"></a-cone>
+                        <a-cylinder color="#10B981" radius="15" height="100" position="0 50 0" rotation="-90 0 0"></a-cylinder>
+                    </a-entity>
+                    
+                    <a-text 
+                        id="nav-instruction"
+                        value="Destination" 
+                        color="#ffffff" 
+                        scale="150 150 150" 
+                        position="0 250 0"
+                        align="center"
+                        rotation="-90 0 0"
+                        look-at="[gps-camera]">
+                    </a-text>
+                </a-entity>
+                
+                <a-camera gps-camera="minAccuracy: 10000; gpsMinDistance: 1;" rotation-reader>
+                    <a-entity id="hud-nav-group" position="0 -0.3 -1.5" visible="false">
+                        <a-entity id="hud-nav-arrow" compass-arrow>
+                            <a-cone color="#10B981" radius-bottom="0.08" radius-top="0" height="0.3" rotation="90 0 0" position="0 0 -0.15"></a-cone>
+                            <a-cylinder color="#10B981" radius="0.04" height="0.3" rotation="90 0 0" position="0 0 0.15"></a-cylinder>
+                        </a-entity>
+                        <a-text id="hud-nav-distance" value="" align="center" color="#ffffff" position="0 -0.4 0" scale="0.5 0.5 0.5" font="kelsonsans"></a-text>
+                    </a-entity>
+                </a-camera>
+            </a-scene>
+        `;
+
+        container.innerHTML = sceneHtml;
+        arSceneElement = container.querySelector('a-scene');
+    }
+
+    function destroyARScene() {
+        if (!arSceneElement) return;
+
+        // Stop the camera tracks explicitly to turn off camera indicator light immediately
+        const video = document.querySelector('video');
+        if (video && video.srcObject) {
+            const stream = video.srcObject;
+            const tracks = stream.getTracks();
+            tracks.forEach(track => track.stop());
+            video.srcObject = null;
+        }
+
+        // Clean up DOM
+        const container = document.getElementById('ar-scene-container');
+        if (container) {
+            container.innerHTML = '';
+        }
+        arSceneElement = null;
+
+        // Also clean up any dynamic overlay classes
+        const cameraErrorOverlay = document.getElementById('camera-error-overlay');
+        if (cameraErrorOverlay) {
+            cameraErrorOverlay.classList.add('hidden');
+        }
+    }
     
     // HTML Fullscreen Video elements
     const videoOverlay = document.getElementById('video-overlay');
@@ -102,6 +202,9 @@ window.addEventListener('load', async () => {
         globalModeBadge.style.borderColor = "var(--success)";
         globalModeBadge.style.color = "#6ee7b7";
         
+        // Initialize dynamic AR scene
+        initARScene();
+        
         // Show developer sandbox for simulating markers
         if (devSandbox) devSandbox.style.display = 'flex';
 
@@ -124,25 +227,13 @@ window.addEventListener('load', async () => {
         errorOverlay.classList.add('hidden');
         htmlInstructionBar.classList.add('hidden');
         
-        // 3. Clear active nav buttons highlights
-        navButtons.forEach(b => b.classList.remove('active'));
+        // 3. Clear active nav buttons highlights (Fixed ReferenceError by querying directly)
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         
-        // 4. Hide 3D AR elements
-        arrowModel.setAttribute('position', '0 -9999 0');
-        navInstruction.setAttribute('position', '0 -9999 0');
-        const hudNavGroup = document.getElementById('hud-nav-group');
-        if (hudNavGroup) hudNavGroup.setAttribute('visible', 'false');
-        
-        // 5. Hide simulated PC sandbox elements
-        const simArrowModel = document.getElementById('sim-arrow-model');
-        const simNavInstruction = document.getElementById('sim-nav-instruction');
-        if (simArrowModel) simArrowModel.setAttribute('position', '0 -9999 -150');
-        if (simNavInstruction) simNavInstruction.setAttribute('position', '0 -9999 -150');
-        
-        // 6. Reset compass states
+        // 4. Reset compass states
         isNavigating = false;
         
-        // 7. Hide back button, badge, and dev sandbox
+        // 5. Hide back button, badge, and dev sandbox
         globalBackBtn.classList.add('hidden');
         globalModeBadge.classList.add('hidden');
         if (devSandbox) devSandbox.style.display = 'none';
@@ -150,6 +241,9 @@ window.addEventListener('load', async () => {
         // Reset Dev Simulation Buttons if active
         simLostBtn.classList.add('hidden');
         simFoundBtn.classList.remove('hidden');
+        
+        // 6. Destroy dynamic AR scene (stops webcam and releases resources)
+        destroyARScene();
         
         currentMode = null;
         modeSelectionOverlay.classList.remove('hidden');
@@ -256,14 +350,14 @@ window.addEventListener('load', async () => {
                 );
                 window.targetHeading = targetHeading;
                 
-                const hudDistance = document.getElementById('hud-nav-distance');
+                const hudDistance = getHudDistance();
                 if (hudDistance) hudDistance.setAttribute('value', `${Math.round(distance)}m`);
                 
                 // Dynamically update textual instruction using GPS
                 htmlInstructionText.innerText = `Navigating to ${destConfig.name} (${Math.round(distance)}m)`;
                 
                 // Show the HUD arrow since we now have GPS lock
-                const hudNavArrow = document.getElementById('hud-nav-arrow');
+                const hudNavArrow = getHudNavArrow();
                 if (hudNavArrow) hudNavArrow.setAttribute('visible', 'true');
                 
                 // If within 10 meters, show Arrival screen!
@@ -349,6 +443,9 @@ window.addEventListener('load', async () => {
 
     // Handle Route Selection
     function handleDestinationSelect(btn, destConfig) {
+        const instructionText = destConfig.instructions || '';
+        const yRot = destConfig.ar_rot ? destConfig.ar_rot.split(' ')[1] : '0';
+
         // UI Toggle
         const allBtns = document.querySelectorAll('.nav-btn');
         allBtns.forEach(b => b.classList.remove('active'));
@@ -413,7 +510,7 @@ window.addEventListener('load', async () => {
         isNavigating = true;
 
         // Hide HUD arrow until GPS locks
-        const hudNavArrow = document.getElementById('hud-nav-arrow');
+        const hudNavArrow = getHudNavArrow();
         if (hudNavArrow) hudNavArrow.setAttribute('visible', 'false');
 
         // (Permissions for compass are now handled natively by A-Frame's look-at component)
@@ -423,8 +520,8 @@ window.addEventListener('load', async () => {
         // ==========================================
         if (currentMode === 'video') {
             // Hide the AR arrow just in case
-            arrowModel.setAttribute('position', '0 -9999 0'); 
-            navInstruction.setAttribute('position', '0 -9999 0');
+            getArrowModel()?.setAttribute('position', '0 -9999 0'); 
+            getNavInstruction()?.setAttribute('position', '0 -9999 0');
             
             // Track selected destination
             activeDestination = destConfig.id;
@@ -452,7 +549,7 @@ window.addEventListener('load', async () => {
             videoOverlay.classList.add('hidden');
             activeDestination = destConfig.id;
             
-            const destPin = document.getElementById('destination-pin');
+            const destPin = getDestPin();
             if (destPin) {
                 // Set the exact GPS coordinates of the destination
                 const lat = destConfig.lat || 0;
@@ -461,7 +558,7 @@ window.addEventListener('load', async () => {
                 destPin.setAttribute('visible', 'true');
             }
             
-            const hudNavGroup = document.getElementById('hud-nav-group');
+            const hudNavGroup = getHudNavGroup();
             if (hudNavGroup) hudNavGroup.setAttribute('visible', 'true');
             
             // Show the "Simulate Arrival" button in sandbox
@@ -469,8 +566,8 @@ window.addEventListener('load', async () => {
         }
 
         // Apply simulation arrow animation (for PC sandbox testing mode)
-        const simArrowModel = document.getElementById('sim-arrow-model');
-        const simNavInstruction = document.getElementById('sim-nav-instruction');
+        const simArrowModel = getSimArrowModel();
+        const simNavInstruction = getSimNavInstruction();
         
         if (simArrowModel && simNavInstruction) {
             // If we are currently in simulation mode (Simulate Location Found has been clicked and is hidden)
@@ -546,14 +643,14 @@ window.addEventListener('load', async () => {
         isNavigating = false;
 
         // Hide AR elements
-        const destPin = document.getElementById('destination-pin');
+        const destPin = getDestPin();
         if (destPin) destPin.setAttribute('visible', 'false');
-        const hudNavGroup = document.getElementById('hud-nav-group');
+        const hudNavGroup = getHudNavGroup();
         if (hudNavGroup) hudNavGroup.setAttribute('visible', 'false');
 
         // Hide simulated AR elements
-        const simArrowModel = document.getElementById('sim-arrow-model');
-        const simNavInstruction = document.getElementById('sim-nav-instruction');
+        const simArrowModel = getSimArrowModel();
+        const simNavInstruction = getSimNavInstruction();
         if (simArrowModel) simArrowModel.setAttribute('position', '0 -9999 -150');
         if (simNavInstruction) simNavInstruction.setAttribute('position', '0 -9999 -150');
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Campus AR - Visual Recognition</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script>
         // Intercept AR.js hardcoded ugly alert boxes for camera errors
         const originalAlert = window.alert;
@@ -21,9 +21,8 @@
             originalAlert(msg);
         };
     </script>
-    <!-- Use standard AR.js Location-Based tracking dependencies -->
-    <script type='text/javascript' src='https://raw.githack.com/AR-js-org/AR.js/master/three.js/build/ar-threex-location-only.js'></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <!-- Use standard AR.js tracking dependencies (pinned to stable release) -->
+    <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar.js"></script>
     <link rel="stylesheet" href="./style.css">
     
     <script>
@@ -229,67 +228,8 @@
         </div>
     </div>
 
-    <!-- AR Scene -->
-    <a-scene
-        vr-mode-ui="enabled: false"
-        renderer="logarithmicDepthBuffer: true; antialias: true; alpha: true;"
-        embedded
-        arjs="sourceType: webcam; debugUIEnabled: false;">
-
-        <!-- Developer Sandbox 3D Simulation Elements (Always Visible, attached to scene) -->
-        <a-entity id="sim-arrow-model" rotation="90 0 0" position="0 -9999 -150" scale="0.5 0.5 0.5">
-            <a-cone color="#10B981" radius-bottom="30" radius-top="0" height="60" position="0 150 0" rotation="-90 0 0"></a-cone>
-            <a-cylinder color="#10B981" radius="15" height="100" position="0 50 0" rotation="-90 0 0"></a-cylinder>
-        </a-entity>
-        
-        <a-text 
-            id="sim-nav-instruction"
-            value="Select a destination" 
-            color="#ffffff" 
-            scale="4 4 4" 
-            position="0 -9999 -150"
-            align="center">
-        </a-text>
-
-        <!-- 3D Destination Pin (Location-Based GPS Entity) -->
-        <a-entity 
-            id="destination-pin" 
-            gps-entity-place="latitude: 0; longitude: 0;"
-            visible="false">
-            
-            <!-- A massive floating 3D arrow/pin to mark the physical location -->
-            <a-entity id="arrow-model" rotation="0 0 0" position="0 0 0">
-                <a-cone color="#10B981" radius-bottom="30" radius-top="0" height="60" position="0 150 0" rotation="-90 0 0"></a-cone>
-                <a-cylinder color="#10B981" radius="15" height="100" position="0 50 0" rotation="-90 0 0"></a-cylinder>
-            </a-entity>
-            
-            <a-text 
-                id="nav-instruction"
-                value="Destination" 
-                color="#ffffff" 
-                scale="150 150 150" 
-                position="0 250 0"
-                align="center"
-                rotation="-90 0 0"
-                look-at="[gps-camera]">
-            </a-text>
-        </a-entity>
-        
-        <!-- GPS Camera tracks the user's phone location with greatly relaxed accuracy thresholds for indoor/weak signals -->
-        <a-camera gps-camera="minAccuracy: 10000; gpsMinDistance: 1;" rotation-reader>
-            <!-- Dynamic HUD Arrow & Distance Text -->
-            <a-entity id="hud-nav-group" position="0 -0.3 -1.5" visible="false">
-                <!-- Inner entity points to the destination mathematically -->
-                <a-entity id="hud-nav-arrow" compass-arrow>
-                    <!-- Arrow model pointing along -Z towards the target -->
-                    <a-cone color="#10B981" radius-bottom="0.08" radius-top="0" height="0.3" rotation="90 0 0" position="0 0 -0.15"></a-cone>
-                    <a-cylinder color="#10B981" radius="0.04" height="0.3" rotation="90 0 0" position="0 0 0.15"></a-cylinder>
-                </a-entity>
-                <!-- Distance label attached below the arrow -->
-                <a-text id="hud-nav-distance" value="" align="center" color="#ffffff" position="0 -0.4 0" scale="0.5 0.5 0.5" font="kelsonsans"></a-text>
-            </a-entity>
-        </a-camera>
-    </a-scene>
+    <!-- Dynamic AR Scene Container -->
+    <div id="ar-scene-container"></div>
 
     <script type="module" src="./main.js"></script>
 </body>
