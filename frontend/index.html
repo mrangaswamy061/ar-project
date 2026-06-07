@@ -26,33 +26,24 @@
     <link rel="stylesheet" href="./style.css">
     
     <script>
-        window.currentHeading = 0;
-
-        // Listen to native hardware orientation events to get absolute compass heading
-        window.addEventListener('deviceorientationabsolute', (e) => {
-            if (e.alpha !== null) {
-                window.currentHeading = (360 - e.alpha) % 360;
-            }
-        }, true);
-
-        window.addEventListener('deviceorientation', (e) => {
-            if (e.webkitCompassHeading !== undefined) {
-                window.currentHeading = e.webkitCompassHeading;
-            } else if (window.currentHeading === 0 && e.alpha !== null) {
-                window.currentHeading = (360 - e.alpha) % 360;
-            }
-        }, true);
-
         // Custom A-Frame component to flawlessly rotate the HUD arrow
-        // by reading the native compass heading and calculated target heading
+        // by reading the already-smoothed THREE.js camera rotation directly (in radians)
         AFRAME.registerComponent('compass-arrow', {
             tick: function () {
                 if (window.targetHeading === undefined || window.targetHeading === null) return;
 
-                const compassHeading = window.currentHeading || 0;
+                const cameraEl = document.querySelector('[gps-camera]');
+                if (!cameraEl || !cameraEl.object3D) return;
 
-                // Calculate local rotation: compassHeading and targetHeading are clockwise
-                // A-Frame rotation is counter-clockwise, so clockwise offset is negative.
+                // THREE.js updates object3D.rotation directly in radians for high performance
+                const cameraYRad = cameraEl.object3D.rotation.y;
+                const cameraY = cameraYRad * (180 / Math.PI); // Convert to degrees
+                
+                // AR.js maps compass to Y-rotation: North=0, East=-90, South=-180, West=90
+                let compassHeading = -cameraY;
+                compassHeading = (compassHeading % 360 + 360) % 360;
+
+                // Calculate the exact local rotation for the arrow
                 let arrowRotY = compassHeading - window.targetHeading;
                 
                 this.el.setAttribute('rotation', `0 ${arrowRotY} 0`);
