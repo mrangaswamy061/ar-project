@@ -1,4 +1,12 @@
 window.addEventListener('load', async () => {
+    // Setup Trusted Types policy to prevent security blocking in environments that enforce it
+    let htmlPolicy = { createHTML: (val) => val };
+    if (window.trustedTypes && window.trustedTypes.createPolicy) {
+        htmlPolicy = window.trustedTypes.createPolicy('default', {
+            createHTML: (string) => string
+        });
+    }
+
     const loader = document.getElementById('loader');
     const errorOverlay = document.getElementById('error-overlay');
     const successOverlay = document.getElementById('success-overlay');
@@ -81,7 +89,7 @@ window.addEventListener('load', async () => {
             </a-scene>
         `;
 
-        container.innerHTML = sceneHtml;
+        container.innerHTML = htmlPolicy.createHTML(sceneHtml);
         arSceneElement = container.querySelector('a-scene');
     }
 
@@ -100,7 +108,7 @@ window.addEventListener('load', async () => {
         // Clean up DOM
         const container = document.getElementById('ar-scene-container');
         if (container) {
-            container.innerHTML = '';
+            container.innerHTML = htmlPolicy.createHTML('');
         }
         arSceneElement = null;
 
@@ -131,6 +139,8 @@ window.addEventListener('load', async () => {
     let isLocationIdentified = false;
     let activeDestination = 'bca_classroom';
     let initialHeading = null;
+    let lastGpsPosition = null;
+    let watchId = null;
 
     // Handle AR.js Camera Permission Errors gracefully!
     window.addEventListener('camera-error', (err) => {
@@ -142,13 +152,58 @@ window.addEventListener('load', async () => {
     });
     let targetHeading = 0;
     let isNavigating = false;
-    let navigationConfig = {}; // Stores fetched dynamic configurations
+    
+    // Default fallback configurations to guarantee the destination list renders instantly
+    let navigationConfig = {
+        "bca_classroom": {
+            "id": "bca_classroom",
+            "name": "1st Year BCA Classroom",
+            "type": "video",
+            "video_time": 75.0,
+            "ar_rot": "0 90 0",
+            "instructions": "Turn Left for 1st Year BCA Classroom",
+            "lat": 13.336847,
+            "lng": 77.130151
+        },
+        "staff_room": {
+            "id": "staff_room",
+            "name": "Staff Room",
+            "type": "video",
+            "video_time": 82.0,
+            "ar_rot": "0 90 0",
+            "instructions": "Turn Left, then Right for Staff Room",
+            "lat": 13.336857,
+            "lng": 77.130140
+        },
+        "meeting_room": {
+            "id": "meeting_room",
+            "name": "Meeting Room",
+            "type": "video",
+            "video_time": 95.0,
+            "ar_rot": "0 0 0",
+            "instructions": "Go Straight & Down Stairs for Meeting Room",
+            "lat": 13.336920,
+            "lng": 77.130192
+        },
+        "academic_director": {
+            "id": "academic_director",
+            "name": "Academic Director",
+            "type": "video",
+            "video_time": 116.0,
+            "ar_rot": "0 0 0",
+            "instructions": "Go Straight, Down Stairs & Turn Right for Academic Director",
+            "lat": 13.337035,
+            "lng": 77.130228
+        }
+    };
+
+    // Render fallback destinations instantly
+    renderDynamicDestinations();
 
     // Fetch dynamic configurations without blocking the UI
     async function fetchNavigationData() {
         try {
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
-            const API_BASE = isLocal ? 'http://localhost:5000' : '';
+            const API_BASE = ''; // Always empty to let Vite proxy prevent Mixed Content blocks
             const response = await fetch(`${API_BASE}/api/navigation-config`);
             if (response.ok) {
                 const configData = await response.json();
@@ -202,17 +257,93 @@ window.addEventListener('load', async () => {
         globalModeBadge.style.borderColor = "var(--success)";
         globalModeBadge.style.color = "#6ee7b7";
         
+        // Show loader overlay while requesting permission
+        loader.classList.remove('hidden');
+        const loaderTitle = loader.querySelector('h2');
+        const loaderDesc = loader.querySelector('p');
+        if (loaderTitle) loaderTitle.innerText = "Connecting GPS & Camera...";
+        if (loaderDesc) loaderDesc.innerText = "Please allow location and camera access if prompted.";
+
         // Initialize dynamic AR scene
         initARScene();
         
+        // Request DeviceOrientation permission on iOS
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            DeviceOrientationEvent.requestPermission()
+                .then(response => {
+                    if (response === 'granted') {
+                        window.addEventListener('deviceorientation', () => {}, true);
+                    }
+                })
+                .catch(console.error);
+        }
+
         // Show developer sandbox for simulating markers
         if (devSandbox) devSandbox.style.display = 'flex';
 
-        // Bypasses camera scanning overlays, show menu directly
-        loader.classList.add('hidden');
-        errorOverlay.classList.add('hidden');
-        successOverlay.classList.add('hidden');
-        navMenu.classList.remove('hidden');
+        // Start watching geolocation
+        if (navigator.geolocation) {
+            watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    const firstTime = !lastGpsPosition;
+                    lastGpsPosition = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude
+                    };
+
+                    // Trigger location identified state
+                    isLocationIdentified = true;
+                    
+                    // Dispatch CustomEvent to let A-Frame/AR.js update itself
+                    const gpsEvent = new CustomEvent('gps-camera-update-position', {
+                        detail: {
+                            position: lastGpsPosition
+                        }
+                    });
+                    window.dispatchEvent(gpsEvent);
+
+                    if (firstTime) {
+                        // Hide loader, show Success Overlay
+                        loader.classList.add('hidden');
+                        errorOverlay.classList.add('hidden');
+                        successOverlay.classList.remove('hidden');
+                        
+                        setTimeout(() => {
+                            successOverlay.classList.add('hidden');
+                            navMenu.classList.remove('hidden');
+                        }, 2000);
+                    }
+                },
+                (err) => {
+                    console.error("GPS Watch Error:", err);
+                    loader.classList.add('hidden');
+                    successOverlay.classList.add('hidden');
+                    errorOverlay.classList.remove('hidden');
+                    
+                    const errTitle = document.getElementById('error-title');
+                    const errDesc = document.getElementById('error-desc');
+                    if (err.code === err.PERMISSION_DENIED) {
+                        if (errTitle) errTitle.innerText = "Location Blocked 🛰️";
+                        if (errDesc) errDesc.innerText = "Please enable location services and grant permission to proceed.";
+                    } else {
+                        if (errTitle) errTitle.innerText = "GPS Error ❌";
+                        if (errDesc) errDesc.innerText = "Unable to retrieve your location. Make sure GPS is enabled.";
+                    }
+                },
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 15000
+                }
+            );
+        } else {
+            loader.classList.add('hidden');
+            errorOverlay.classList.remove('hidden');
+            const errTitle = document.getElementById('error-title');
+            const errDesc = document.getElementById('error-desc');
+            if (errTitle) errTitle.innerText = "GPS Unsupported ❌";
+            if (errDesc) errDesc.innerText = "Your browser or device does not support GPS navigation.";
+        }
     });
 
     globalBackBtn.addEventListener('click', () => {
@@ -242,7 +373,15 @@ window.addEventListener('load', async () => {
         simLostBtn.classList.add('hidden');
         simFoundBtn.classList.remove('hidden');
         
-        // 6. Destroy dynamic AR scene (stops webcam and releases resources)
+        // 6. Clear GPS watch and reset states
+        if (watchId !== null) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
+        lastGpsPosition = null;
+        isLocationIdentified = false;
+
+        // 7. Destroy dynamic AR scene (stops webcam and releases resources)
         destroyARScene();
         
         currentMode = null;
@@ -291,28 +430,28 @@ window.addEventListener('load', async () => {
         
         // Single unified timeline matching all camera turns in the walk video
         if (t >= 0 && t < 15) {
-            videoDirections.innerHTML = arrowStraight;
+            videoDirections.innerHTML = htmlPolicy.createHTML(arrowStraight);
         } 
         else if (t >= 15 && t < 22) {
-            videoDirections.innerHTML = arrowLeft;
+            videoDirections.innerHTML = htmlPolicy.createHTML(arrowLeft);
         } 
         else if (t >= 22 && t < 46) {
-            videoDirections.innerHTML = arrowStraight;
+            videoDirections.innerHTML = htmlPolicy.createHTML(arrowStraight);
         } 
         else if (t >= 46 && t < 52) {
-            videoDirections.innerHTML = arrowRight;
+            videoDirections.innerHTML = htmlPolicy.createHTML(arrowRight);
         } 
         else if (t >= 52 && t < 68) {
-            videoDirections.innerHTML = arrowStraight;
+            videoDirections.innerHTML = htmlPolicy.createHTML(arrowStraight);
         } 
         else if (t >= 68 && t < 101) {
-            videoDirections.innerHTML = arrowDown;
+            videoDirections.innerHTML = htmlPolicy.createHTML(arrowDown);
         }
         else if (t >= 101 && t < 111) {
-            videoDirections.innerHTML = arrowStraight;
+            videoDirections.innerHTML = htmlPolicy.createHTML(arrowStraight);
         }
         else if (t >= 111 && t < 114) {
-            videoDirections.innerHTML = arrowRight;
+            videoDirections.innerHTML = htmlPolicy.createHTML(arrowRight);
         }
     });
 
@@ -328,23 +467,28 @@ window.addEventListener('load', async () => {
     window.addEventListener('gps-camera-update-position', async (e) => {
         loader.classList.add('hidden');
         isLocationIdentified = true;
+        lastGpsPosition = e.detail.position;
 
+        updateNavigationUI();
+    });
+
+    function updateNavigationUI() {
         // If we are actively navigating, check distance to destination
-        if (isNavigating && currentMode === 'ar' && activeDestination) {
+        if (isNavigating && currentMode === 'ar' && activeDestination && lastGpsPosition) {
             const destConfig = navigationConfig[activeDestination];
             if (destConfig && destConfig.lat && destConfig.lng) {
                 // Calculate distance using Haversine formula
                 const distance = calculateDistance(
-                    e.detail.position.latitude, 
-                    e.detail.position.longitude,
+                    lastGpsPosition.latitude, 
+                    lastGpsPosition.longitude,
                     destConfig.lat,
                     destConfig.lng
                 );
                 
                 // Calculate bearing to update the compass direction text
                 targetHeading = calculateBearing(
-                    e.detail.position.latitude, 
-                    e.detail.position.longitude,
+                    lastGpsPosition.latitude, 
+                    lastGpsPosition.longitude,
                     destConfig.lat,
                     destConfig.lng
                 );
@@ -354,11 +498,18 @@ window.addEventListener('load', async () => {
                 if (hudDistance) hudDistance.setAttribute('value', `${Math.round(distance)}m`);
                 
                 // Dynamically update textual instruction using GPS
-                htmlInstructionText.innerText = `Navigating to ${destConfig.name} (${Math.round(distance)}m)`;
+                const directionsText = destConfig.instructions ? `${destConfig.instructions}\n` : '';
+                htmlInstructionText.innerText = `${directionsText}Distance: ${Math.round(distance)}m`;
                 
                 // Show the HUD arrow since we now have GPS lock
                 const hudNavArrow = getHudNavArrow();
                 if (hudNavArrow) hudNavArrow.setAttribute('visible', 'true');
+
+                // Update 3D AR floating text above the destination pin
+                const navInstruction = getNavInstruction();
+                if (navInstruction) {
+                    navInstruction.setAttribute('value', `${destConfig.name}\n${Math.round(distance)}m`);
+                }
                 
                 // If within 10 meters, show Arrival screen!
                 if (distance < 10) {
@@ -371,7 +522,7 @@ window.addEventListener('load', async () => {
                 }
             }
         }
-    });
+    }
 
     // Haversine distance formula (returns distance in meters)
     function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -409,7 +560,7 @@ window.addEventListener('load', async () => {
         const destContainer = document.getElementById('dynamic-destinations');
         if (!destContainer) return;
         
-        destContainer.innerHTML = '';
+        destContainer.innerHTML = htmlPolicy.createHTML('');
         
         Object.keys(navigationConfig).forEach(destId => {
             const dest = navigationConfig[destId];
@@ -427,8 +578,7 @@ window.addEventListener('load', async () => {
     }
 
     function logTelemetry(destinationName, mode) {
-        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
-        const API_BASE = isLocal ? 'http://localhost:5000' : '';
+        const API_BASE = ''; // Use Vite proxy to avoid mixed content block
         fetch(`${API_BASE}/api/telemetry/log`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -468,7 +618,7 @@ window.addEventListener('load', async () => {
         // Add timeout warning if GPS takes too long (10 seconds)
         let gpsTimeout = setTimeout(() => {
             if (targetHeading === null) {
-                htmlInstructionText.innerHTML = `GPS Signal is weak or stuck. <button id="force-sim-btn" style="background:#10B981; border:none; padding:5px 10px; border-radius:5px; color:white; font-family:'Outfit'; cursor:pointer; margin-left:10px;">Click to Force Simulation</button>`;
+                htmlInstructionText.innerHTML = htmlPolicy.createHTML(`GPS Signal is weak or stuck. <button id="force-sim-btn" style="background:#10B981; border:none; padding:5px 10px; border-radius:5px; color:white; font-family:'Outfit'; cursor:pointer; margin-left:10px;">Click to Force Simulation</button>`);
                 document.getElementById('force-sim-btn')?.addEventListener('click', () => {
                     document.getElementById('sim-found-btn')?.click();
                 });
@@ -581,6 +731,11 @@ window.addEventListener('load', async () => {
                 const simRotation = `90 ${yRot} 0`;
                 simArrowModel.setAttribute('animation', `property: rotation; to: ${simRotation}; dur: 800; easing: easeInOutQuad`);
             }
+        }
+
+        // Immediately compute direction and distance if GPS coordinate is already available
+        if (lastGpsPosition) {
+            updateNavigationUI();
         }
     }
 

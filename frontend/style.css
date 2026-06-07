@@ -161,7 +161,8 @@ body {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: radial-gradient(circle at center, rgba(15, 23, 42, 0.95) 0%, rgba(2, 6, 23, 0.98) 100%);
+    background: linear-gradient(rgba(15, 23, 42, 0.75), rgba(2, 6, 23, 0.85)), url('./vidya.jpeg') no-repeat center center;
+    background-size: cover;
     z-index: 100003;
     display: flex;
     flex-direction: column;
@@ -184,14 +185,15 @@ body {
     animation: fadeInDown 0.8s ease;
 }
 
-.mode-selection-header h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
+.main-title {
+    font-size: 3.5rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em;
     margin: 0;
-    background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 100%);
+    background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 40%, #a5b4fc 80%, #818cf8 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    text-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+    text-shadow: 0 4px 30px rgba(99, 102, 241, 0.5), 0 2px 4px rgba(0,0,0,0.8);
 }
 
 .mode-selection-header p {
@@ -215,8 +217,8 @@ body {
         gap: 20px;
         max-width: 360px;
     }
-    .mode-selection-header h1 {
-        font-size: 2rem;
+    .main-title {
+        font-size: 2.2rem !important;
     }
 }
 
@@ -362,5 +364,14 @@ body {
 @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+#ar-scene-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
 }
 
