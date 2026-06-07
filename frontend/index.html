@@ -212,19 +212,34 @@
                 this.currentAngle = null;
             },
             tick: function () {
+                if (!window.lastGpsPosition || !window.activeDestinationConfig) return;
+                
                 const cameraEl = document.querySelector('[gps-camera]');
-                const destPin = document.getElementById('destination-pin');
-                if (!cameraEl || !cameraEl.object3D || !destPin || !destPin.object3D) return;
+                if (!cameraEl || !cameraEl.object3D) return;
 
-                // Project destination pin coordinates to camera's local space
-                const localPos = new THREE.Vector3();
-                destPin.object3D.getWorldPosition(localPos);
-                cameraEl.object3D.worldToLocal(localPos);
+                // 1. Calculate GPS bearing to destination mathematically
+                const lat1 = window.lastGpsPosition.latitude;
+                const lon1 = window.lastGpsPosition.longitude;
+                const lat2 = window.activeDestinationConfig.lat;
+                const lon2 = window.activeDestinationConfig.lng;
 
-                // Calculate heading angle in degrees (where -Z is forward, +X is right)
-                // atan2(x, -z) returns positive clockwise angle from forward direction
-                let targetAngle = Math.atan2(localPos.x, -localPos.z) * (180 / Math.PI);
-                targetAngle = (targetAngle + 360) % 360;
+                const φ1 = lat1 * Math.PI / 180;
+                const φ2 = lat2 * Math.PI / 180;
+                const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+                const y = Math.sin(Δλ) * Math.cos(φ2);
+                const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+                const bearing = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+
+                // 2. Read absolute device compass heading, fallback to camera yaw
+                let deviceHeading = window.deviceHeading;
+                const cameraY = cameraEl.object3D.rotation.y * (180 / Math.PI);
+                if (deviceHeading === undefined || deviceHeading === null) {
+                    deviceHeading = (360 - cameraY) % 360;
+                }
+
+                // 3. HUD local Y rotation = deviceHeading - bearing (positive turns are CCW in A-Frame)
+                const targetAngle = (deviceHeading - bearing + 360) % 360;
 
                 if (this.currentAngle === null) {
                     this.currentAngle = targetAngle;
@@ -235,15 +250,11 @@
                     if (diff < 0) diff += 360;
                     diff -= 180;
                     
-                    const lerpFactor = 0.12; // Damping factor for smooth turning
+                    const lerpFactor = 0.12;
                     this.currentAngle = (this.currentAngle + diff * lerpFactor + 360) % 360;
                 }
 
-                // In local space of the camera HUD, pointing at this angle
-                // Wait! A-Frame camera is facing -Z. The local rotation around Y rotates the HUD child.
-                // Since positive rotation is counter-clockwise, and targetAngle increases clockwise (to the right),
-                // we should negate targetAngle to match A-Frame's rotation direction!
-                this.el.setAttribute('rotation', `0 ${-this.currentAngle} 0`);
+                this.el.setAttribute('rotation', `0 ${this.currentAngle} 0`);
             }
         });
     </script>

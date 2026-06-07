@@ -578,6 +578,7 @@ window.addEventListener('load', async () => {
         loader.classList.add('hidden');
         isLocationIdentified = true;
         lastGpsPosition = e.detail.position;
+        window.lastGpsPosition = lastGpsPosition;
 
         updateNavigationUI();
     });
@@ -587,6 +588,7 @@ window.addEventListener('load', async () => {
         if (isNavigating && currentMode === 'ar' && activeDestination && lastGpsPosition) {
             const destConfig = navigationConfig[activeDestination];
             if (destConfig && destConfig.lat && destConfig.lng) {
+                window.activeDestinationConfig = destConfig;
                 // Calculate distance using Haversine formula
                 const targetDistance = calculateDistance(
                     lastGpsPosition.latitude, 
@@ -1051,54 +1053,70 @@ window.addEventListener('load', async () => {
         if (isNavigating && currentMode === 'ar') {
             const arrowWrapper = document.getElementById('hud-nav-arrow-wrapper');
             const cameraEl = document.querySelector('[gps-camera]');
-            const destPin = document.getElementById('destination-pin');
             const radarRing = document.getElementById('hud-radar-ring');
             const alignmentGlow = document.getElementById('hud-alignment-glow');
             
-            if (arrowWrapper && cameraEl && cameraEl.object3D && destPin && destPin.object3D) {
-                // Project destination pin coordinates to camera's local space
-                if (typeof THREE !== 'undefined') {
-                    const localPos = new THREE.Vector3();
-                    destPin.object3D.getWorldPosition(localPos);
-                    cameraEl.object3D.worldToLocal(localPos);
+            if (arrowWrapper && window.lastGpsPosition && window.activeDestinationConfig) {
+                // 1. Calculate GPS bearing to destination mathematically
+                const lat1 = window.lastGpsPosition.latitude;
+                const lon1 = window.lastGpsPosition.longitude;
+                const lat2 = window.activeDestinationConfig.lat;
+                const lon2 = window.activeDestinationConfig.lng;
 
-                    // Calculate heading angle in degrees (where -Z is forward, +X is right)
-                    let targetAngle = Math.atan2(localPos.x, -localPos.z) * (180 / Math.PI);
-                    targetAngle = (targetAngle + 360) % 360;
+                const φ1 = lat1 * Math.PI / 180;
+                const φ2 = lat2 * Math.PI / 180;
+                const Δλ = (lon2 - lon1) * Math.PI / 180;
 
-                    // Shortest path interpolation (lerp) for smooth rotation
-                    let diff = targetAngle - current2DArrowAngle;
-                    diff = (diff + 180) % 360;
-                    if (diff < 0) diff += 360;
-                    diff -= 180;
-                    
-                    const lerpFactor = 0.12; // Damping coefficient (smooth but responsive)
-                    current2DArrowAngle = (current2DArrowAngle + diff * lerpFactor + 360) % 360;
-                    
-                    arrowWrapper.style.transform = `rotate(${current2DArrowAngle}deg)`;
+                const y = Math.sin(Δλ) * Math.cos(φ2);
+                const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+                const bearing = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 
-                    // Target alignment check (if angle is within 15 degrees of forward direction)
-                    const angleDiffFromCenter = Math.abs(current2DArrowAngle > 180 ? current2DArrowAngle - 360 : current2DArrowAngle);
-                    if (angleDiffFromCenter < 15) {
-                        // Pointing directly towards destination!
-                        if (radarRing) {
-                            radarRing.style.borderColor = '#10B981';
-                            radarRing.style.borderStyle = 'solid';
-                            radarRing.style.boxShadow = '0 0 30px rgba(16, 185, 129, 0.4)';
-                        }
-                        if (alignmentGlow) {
-                            alignmentGlow.style.opacity = '1';
-                        }
+                // 2. Read absolute device compass heading, fallback to WebGL camera yaw
+                let deviceHeading = window.deviceHeading;
+                if (deviceHeading === undefined || deviceHeading === null) {
+                    if (cameraEl && cameraEl.object3D) {
+                        const cameraY = cameraEl.object3D.rotation.y * (180 / Math.PI);
+                        deviceHeading = (360 - cameraY) % 360;
                     } else {
-                        // Not aligned
-                        if (radarRing) {
-                            radarRing.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-                            radarRing.style.borderStyle = 'dashed';
-                            radarRing.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.1)';
-                        }
-                        if (alignmentGlow) {
-                            alignmentGlow.style.opacity = '0';
-                        }
+                        deviceHeading = 0;
+                    }
+                }
+
+                // 3. 2D Screen Rotation = bearing - deviceHeading
+                const targetAngle = (bearing - deviceHeading + 360) % 360;
+
+                // Shortest path interpolation (lerp) for smooth rotation
+                let diff = targetAngle - current2DArrowAngle;
+                diff = (diff + 180) % 360;
+                if (diff < 0) diff += 360;
+                diff -= 180;
+                
+                const lerpFactor = 0.12; // Damping coefficient (smooth but responsive)
+                current2DArrowAngle = (current2DArrowAngle + diff * lerpFactor + 360) % 360;
+                
+                arrowWrapper.style.transform = `rotate(${current2DArrowAngle}deg)`;
+
+                // Target alignment check (if angle is within 15 degrees of forward direction)
+                const angleDiffFromCenter = Math.abs(current2DArrowAngle > 180 ? current2DArrowAngle - 360 : current2DArrowAngle);
+                if (angleDiffFromCenter < 15) {
+                    // Pointing directly towards destination!
+                    if (radarRing) {
+                        radarRing.style.borderColor = '#10B981';
+                        radarRing.style.borderStyle = 'solid';
+                        radarRing.style.boxShadow = '0 0 30px rgba(16, 185, 129, 0.4)';
+                    }
+                    if (alignmentGlow) {
+                        alignmentGlow.style.opacity = '1';
+                    }
+                } else {
+                    // Not aligned
+                    if (radarRing) {
+                        radarRing.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                        radarRing.style.borderStyle = 'dashed';
+                        radarRing.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.1)';
+                    }
+                    if (alignmentGlow) {
+                        alignmentGlow.style.opacity = '0';
                     }
                 }
             }
