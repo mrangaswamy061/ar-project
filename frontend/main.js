@@ -783,6 +783,8 @@ window.addEventListener('load', async () => {
         allBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
+        isNavigating = true;
+
         // Hide the destination list so the user can see the AR directions clearly
         const navMenu = document.getElementById('nav-menu');
         if (navMenu) {
@@ -853,7 +855,6 @@ window.addEventListener('load', async () => {
         targetHeading = null;
         window.targetHeading = null;
         initialHeading = null; // recalibrate starting point
-        isNavigating = true;
         smoothedDistance = null;
 
         // Hide HUD arrow until GPS locks

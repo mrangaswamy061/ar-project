@@ -25,11 +25,11 @@
             let brokerWatcherIdCounter = 1;
             let nativeWatchId = null;
             let lastKnownCoords = null;
-
+            const hasNativeGeo = !!navigator.geolocation;
             const nativeGeolocation = {
-                getCurrentPosition: navigator.geolocation.getCurrentPosition.bind(navigator.geolocation),
-                watchPosition: navigator.geolocation.watchPosition.bind(navigator.geolocation),
-                clearWatch: navigator.geolocation.clearWatch.bind(navigator.geolocation)
+                getCurrentPosition: hasNativeGeo ? navigator.geolocation.getCurrentPosition.bind(navigator.geolocation) : null,
+                watchPosition: hasNativeGeo ? navigator.geolocation.watchPosition.bind(navigator.geolocation) : null,
+                clearWatch: hasNativeGeo ? navigator.geolocation.clearWatch.bind(navigator.geolocation) : null
             };
 
             function distributePosition(coords) {
@@ -54,7 +54,7 @@
             }
 
             function startNativeTracking() {
-                if (nativeWatchId !== null || isSimulating) return;
+                if (!hasNativeGeo || nativeWatchId !== null || isSimulating) return;
                 
                 nativeWatchId = nativeGeolocation.watchPosition(
                     (position) => {
@@ -74,63 +74,110 @@
             }
 
             function stopNativeTracking() {
-                if (nativeWatchId !== null) {
+                if (hasNativeGeo && nativeWatchId !== null) {
                     nativeGeolocation.clearWatch(nativeWatchId);
                     nativeWatchId = null;
                 }
             }
 
-            navigator.geolocation.getCurrentPosition = function (success, error, options) {
-                if (isSimulating) {
-                    setTimeout(() => {
-                        success({
-                            coords: { ...simCoords },
-                            timestamp: Date.now()
-                        });
-                    }, 0);
-                } else if (lastKnownCoords) {
-                    setTimeout(() => {
-                        success({
-                            coords: { ...lastKnownCoords },
-                            timestamp: Date.now()
-                        });
-                    }, 0);
-                } else {
-                    nativeGeolocation.getCurrentPosition(success, error, options);
-                }
-            };
-
-            navigator.geolocation.watchPosition = function (success, error, options) {
-                const id = brokerWatcherIdCounter++;
-                brokerWatchers.set(id, { success, error, options });
-                
-                if (isSimulating) {
-                    setTimeout(() => {
-                        success({
-                            coords: { ...simCoords },
-                            timestamp: Date.now()
-                        });
-                    }, 0);
-                } else {
-                    startNativeTracking();
-                    if (lastKnownCoords) {
+            if (hasNativeGeo) {
+                navigator.geolocation.getCurrentPosition = function (success, error, options) {
+                    if (isSimulating) {
+                        setTimeout(() => {
+                            success({
+                                coords: { ...simCoords },
+                                timestamp: Date.now()
+                            });
+                        }, 0);
+                    } else if (lastKnownCoords) {
                         setTimeout(() => {
                             success({
                                 coords: { ...lastKnownCoords },
                                 timestamp: Date.now()
                             });
                         }, 0);
+                    } else {
+                        nativeGeolocation.getCurrentPosition(success, error, options);
                     }
-                }
-                return id;
-            };
+                };
 
-            navigator.geolocation.clearWatch = function (id) {
-                brokerWatchers.delete(id);
-                if (brokerWatchers.size === 0) {
-                    stopNativeTracking();
-                }
-            };
+                navigator.geolocation.watchPosition = function (success, error, options) {
+                    const id = brokerWatcherIdCounter++;
+                    brokerWatchers.set(id, { success, error, options });
+                    
+                    if (isSimulating) {
+                        setTimeout(() => {
+                            success({
+                                coords: { ...simCoords },
+                                timestamp: Date.now()
+                            });
+                        }, 0);
+                    } else {
+                        startNativeTracking();
+                        if (lastKnownCoords) {
+                            setTimeout(() => {
+                                success({
+                                    coords: { ...lastKnownCoords },
+                                    timestamp: Date.now()
+                                });
+                            }, 0);
+                        }
+                    }
+                    return id;
+                };
+
+                navigator.geolocation.clearWatch = function (id) {
+                    brokerWatchers.delete(id);
+                    if (brokerWatchers.size === 0) {
+                        stopNativeTracking();
+                    }
+                };
+            } else {
+                // In insecure context (HTTP) or unsupported environment, expose geolocation mocks so A-Frame/AR.js do not fail
+                navigator.geolocation = {
+                    getCurrentPosition: function (success, error, options) {
+                        if (isSimulating) {
+                            setTimeout(() => {
+                                success({
+                                    coords: { ...simCoords },
+                                    timestamp: Date.now()
+                                });
+                            }, 0);
+                        } else if (lastKnownCoords) {
+                            setTimeout(() => {
+                                success({
+                                    coords: { ...lastKnownCoords },
+                                    timestamp: Date.now()
+                                });
+                            }, 0);
+                        } else {
+                            setTimeout(() => {
+                                if (error) error({ code: 1, message: "Geolocation not supported" });
+                            }, 0);
+                        }
+                    },
+                    watchPosition: function (success, error, options) {
+                        const id = brokerWatcherIdCounter++;
+                        brokerWatchers.set(id, { success, error, options });
+                        if (isSimulating) {
+                            setTimeout(() => {
+                                success({
+                                    coords: { ...simCoords },
+                                    timestamp: Date.now()
+                                });
+                            }, 0);
+                        } else {
+                            setTimeout(() => {
+                                if (error) error({ code: 1, message: "Geolocation not supported" });
+                            }, 0);
+                        }
+                        return id;
+                    },
+                    clearWatch: function (id) {
+                        brokerWatchers.delete(id);
+                    }
+                };
+            }
 
             window.setSimulatedLocation = function (lat, lng) {
                 isSimulating = true;
