@@ -1050,31 +1050,28 @@ window.addEventListener('load', async () => {
     function animate2DArrow() {
         if (isNavigating && currentMode === 'ar') {
             const arrowEl = document.getElementById('html-hud-arrow');
-            if (arrowEl) {
-                if (window.targetHeading !== undefined && window.targetHeading !== null) {
-                    let deviceHeading = window.deviceHeading;
-                    const cameraEl = document.querySelector('[gps-camera]');
-                    
-                    // Fallback to WebGL camera rotation if compass isn't available
-                    if (deviceHeading === undefined || deviceHeading === null) {
-                        if (cameraEl && cameraEl.object3D) {
-                            const cameraY = cameraEl.object3D.rotation.y * (180 / Math.PI);
-                            deviceHeading = (360 - cameraY) % 360;
-                        } else {
-                            deviceHeading = 0;
-                        }
-                    }
-                    
-                    // Rotate clockwise/counter-clockwise relative to the direction the user faces
-                    const targetAngle = (window.targetHeading - deviceHeading + 360) % 360;
-                    
+            const cameraEl = document.querySelector('[gps-camera]');
+            const destPin = document.getElementById('destination-pin');
+            
+            if (arrowEl && cameraEl && cameraEl.object3D && destPin && destPin.object3D) {
+                // Project destination pin coordinates to camera's local space
+                // A-Frame exposes THREE under global namespace
+                if (typeof THREE !== 'undefined') {
+                    const localPos = new THREE.Vector3();
+                    destPin.object3D.getWorldPosition(localPos);
+                    cameraEl.object3D.worldToLocal(localPos);
+
+                    // Calculate heading angle in degrees (where -Z is forward, +X is right)
+                    let targetAngle = Math.atan2(localPos.x, -localPos.z) * (180 / Math.PI);
+                    targetAngle = (targetAngle + 360) % 360;
+
                     // Shortest path interpolation (lerp) for smooth rotation
                     let diff = targetAngle - current2DArrowAngle;
                     diff = (diff + 180) % 360;
                     if (diff < 0) diff += 360;
                     diff -= 180;
                     
-                    const lerpFactor = 0.12; // Damping coefficient (0.12 = smooth and highly responsive)
+                    const lerpFactor = 0.12; // Damping coefficient
                     current2DArrowAngle = (current2DArrowAngle + diff * lerpFactor + 360) % 360;
                     
                     arrowEl.style.transform = `rotate(${current2DArrowAngle}deg)`;

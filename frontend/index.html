@@ -212,21 +212,19 @@
                 this.currentAngle = null;
             },
             tick: function () {
-                if (window.targetHeading === undefined || window.targetHeading === null) return;
-
                 const cameraEl = document.querySelector('[gps-camera]');
-                if (!cameraEl || !cameraEl.object3D) return;
+                const destPin = document.getElementById('destination-pin');
+                if (!cameraEl || !cameraEl.object3D || !destPin || !destPin.object3D) return;
 
-                // Read absolute device compass heading, fallback to A-Frame camera rotation on desktop/PC
-                let deviceHeading = window.deviceHeading;
-                const cameraY = cameraEl.object3D.rotation.y * (180 / Math.PI);
+                // Project destination pin coordinates to camera's local space
+                const localPos = new THREE.Vector3();
+                destPin.object3D.getWorldPosition(localPos);
+                cameraEl.object3D.worldToLocal(localPos);
 
-                if (deviceHeading === undefined || deviceHeading === null) {
-                    deviceHeading = (360 - cameraY) % 360;
-                }
-
-                // Points the arrow at the absolute GPS bearing relative to the device's current heading.
-                const targetAngle = (deviceHeading - window.targetHeading + 360) % 360;
+                // Calculate heading angle in degrees (where -Z is forward, +X is right)
+                // atan2(x, -z) returns positive clockwise angle from forward direction
+                let targetAngle = Math.atan2(localPos.x, -localPos.z) * (180 / Math.PI);
+                targetAngle = (targetAngle + 360) % 360;
 
                 if (this.currentAngle === null) {
                     this.currentAngle = targetAngle;
@@ -237,11 +235,15 @@
                     if (diff < 0) diff += 360;
                     diff -= 180;
                     
-                    const lerpFactor = 0.12; // Smooth damping coefficient (0.12 is highly responsive yet smooth)
+                    const lerpFactor = 0.12; // Damping factor for smooth turning
                     this.currentAngle = (this.currentAngle + diff * lerpFactor + 360) % 360;
                 }
 
-                this.el.setAttribute('rotation', `0 ${this.currentAngle} 0`);
+                // In local space of the camera HUD, pointing at this angle
+                // Wait! A-Frame camera is facing -Z. The local rotation around Y rotates the HUD child.
+                // Since positive rotation is counter-clockwise, and targetAngle increases clockwise (to the right),
+                // we should negate targetAngle to match A-Frame's rotation direction!
+                this.el.setAttribute('rotation', `0 ${-this.currentAngle} 0`);
             }
         });
     </script>
