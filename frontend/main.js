@@ -235,7 +235,7 @@ window.addEventListener('load', async () => {
     // RESTORE STATE FROM LOCALSTORAGE (Accidental refresh / reload)
     // ==========================================
     function restoreSession() {
-        const savedMode = localStorage.getItem('nav_currentMode');
+        const savedMode = sessionStorage.getItem('nav_currentMode');
         if (savedMode) {
             currentMode = savedMode;
             modeSelectionOverlay.classList.add('hidden');
@@ -267,8 +267,8 @@ window.addEventListener('load', async () => {
                 initARScene();
                 
                 // Explicitly set the HUD navigation group visible if session was actively navigating
-                const savedDest = localStorage.getItem('nav_activeDestination');
-                const savedNavigating = localStorage.getItem('nav_isNavigating') === 'true';
+                const savedDest = sessionStorage.getItem('nav_activeDestination');
+                const savedNavigating = sessionStorage.getItem('nav_isNavigating') === 'true';
                 if (savedDest && savedNavigating) {
                     const hudNavGroup = getHudNavGroup();
                     if (hudNavGroup) hudNavGroup.setAttribute('visible', 'true');
@@ -286,7 +286,9 @@ window.addEventListener('load', async () => {
     // ==========================================
     modeVideoCard.addEventListener('click', () => {
         currentMode = 'video';
-        localStorage.setItem('nav_currentMode', 'video');
+        sessionStorage.setItem('nav_currentMode', 'video');
+        sessionStorage.removeItem('nav_activeDestination');
+        sessionStorage.removeItem('nav_isNavigating');
         modeSelectionOverlay.classList.add('hidden');
         globalBackBtn.classList.remove('hidden');
         if (globalChangeRouteBtn) globalChangeRouteBtn.classList.remove('hidden');
@@ -309,7 +311,9 @@ window.addEventListener('load', async () => {
 
     modeArCard.addEventListener('click', () => {
         currentMode = 'ar';
-        localStorage.setItem('nav_currentMode', 'ar');
+        sessionStorage.setItem('nav_currentMode', 'ar');
+        sessionStorage.removeItem('nav_activeDestination');
+        sessionStorage.removeItem('nav_isNavigating');
         modeSelectionOverlay.classList.add('hidden');
         globalBackBtn.classList.remove('hidden');
         if (globalChangeRouteBtn) globalChangeRouteBtn.classList.remove('hidden');
@@ -387,8 +391,8 @@ window.addEventListener('load', async () => {
                         errorOverlay.classList.add('hidden');
                         
                         // If we are restoring an existing active session, do not show the success overlay or the navigation menu
-                        const savedDest = localStorage.getItem('nav_activeDestination');
-                        const savedNavigating = localStorage.getItem('nav_isNavigating') === 'true';
+                        const savedDest = sessionStorage.getItem('nav_activeDestination');
+                        const savedNavigating = sessionStorage.getItem('nav_isNavigating') === 'true';
                         if (savedDest && savedNavigating) {
                             // Keep menu hidden, active AR guidance is running
                         } else {
@@ -566,9 +570,9 @@ window.addEventListener('load', async () => {
         window.activeDestinationConfig = null;
         window.lastGpsPosition = null;
 
-        localStorage.removeItem('nav_currentMode');
-        localStorage.removeItem('nav_activeDestination');
-        localStorage.removeItem('nav_isNavigating');
+        sessionStorage.removeItem('nav_currentMode');
+        sessionStorage.removeItem('nav_activeDestination');
+        sessionStorage.removeItem('nav_isNavigating');
 
         destroyARScene();
         
@@ -666,8 +670,8 @@ window.addEventListener('load', async () => {
                     destinationOverlay.classList.remove('hidden');
                     // Stop navigation to prevent spamming
                     isNavigating = false;
-                    localStorage.removeItem('nav_isNavigating');
-                    localStorage.removeItem('nav_activeDestination');
+                    sessionStorage.removeItem('nav_isNavigating');
+                    sessionStorage.removeItem('nav_activeDestination');
                 }
             }
         }
@@ -725,9 +729,9 @@ window.addEventListener('load', async () => {
             btn.addEventListener('click', () => handleDestinationSelect(btn, dest));
         });
 
-        // Restore active selection after rendering destinations if saved in localStorage
-        const savedDest = localStorage.getItem('nav_activeDestination');
-        const savedNavigating = localStorage.getItem('nav_isNavigating') === 'true';
+        // Restore active selection after rendering destinations if saved in sessionStorage
+        const savedDest = sessionStorage.getItem('nav_activeDestination');
+        const savedNavigating = sessionStorage.getItem('nav_isNavigating') === 'true';
         if (savedDest && savedNavigating) {
             const activeBtn = destContainer.querySelector(`[data-dest="${savedDest}"]`);
             if (activeBtn) {
@@ -775,9 +779,9 @@ window.addEventListener('load', async () => {
         htmlInstructionText.style.color = "white";
         htmlInstructionBar.classList.remove('hidden');
 
-        // Save active destination selection state to localStorage
-        localStorage.setItem('nav_activeDestination', destConfig.id);
-        localStorage.setItem('nav_isNavigating', 'true');
+        // Save active destination selection state to sessionStorage
+        sessionStorage.setItem('nav_activeDestination', destConfig.id);
+        sessionStorage.setItem('nav_isNavigating', 'true');
 
         // Add timeout warning if GPS takes too long (10 seconds)
         let gpsTimeout = setTimeout(() => {
@@ -988,8 +992,8 @@ window.addEventListener('load', async () => {
             if (destRoomSpan) destRoomSpan.innerText = destConfig.name || 'Destination';
             destinationOverlay.classList.remove('hidden');
             isNavigating = false;
-            localStorage.removeItem('nav_isNavigating');
-            localStorage.removeItem('nav_activeDestination');
+            sessionStorage.removeItem('nav_isNavigating');
+            sessionStorage.removeItem('nav_activeDestination');
         }
     });
 

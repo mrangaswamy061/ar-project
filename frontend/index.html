@@ -322,7 +322,7 @@
 <body style="margin: 0; overflow: hidden;">
     <script>
         // Prevent layout flash of mode selection overlay on page refresh/session restore
-        if (localStorage.getItem('nav_currentMode')) {
+        if (sessionStorage.getItem('nav_currentMode')) {
             document.write('<style>#mode-selection-overlay { display: none !important; }</style>');
         }
     </script>
