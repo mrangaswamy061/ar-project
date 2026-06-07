@@ -454,71 +454,7 @@ window.addEventListener('load', async () => {
         }
     }
 
-    globalBackBtn.addEventListener('click', () => {
-        // 1. Pause video walkthroughs and hide video
-        htmlVideoPlayer.pause();
-        videoOverlay.classList.add('hidden');
-        destinationOverlay.classList.add('hidden');
-        
-        // 2. Hide navigation options and overlays
-        navMenu.classList.add('hidden');
-        successOverlay.classList.add('hidden');
-        errorOverlay.classList.add('hidden');
-        htmlInstructionBar.classList.add('hidden');
-        const arrowContainer = document.getElementById('centered-hud-container');
-        if (arrowContainer) {
-            arrowContainer.classList.add('hidden');
-        }
-        
-        // 3. Clear active nav buttons highlights (Fixed ReferenceError by querying directly)
-        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-        
-        // 4. Reset compass states
-        isNavigating = false;
-        smoothedDistance = null;
-        
-        // 5. Hide back button, badge, change route button, and dev sandbox
-        globalBackBtn.classList.add('hidden');
-        if (globalChangeRouteBtn) globalChangeRouteBtn.classList.add('hidden');
-        globalModeBadge.classList.add('hidden');
-        if (devSandbox) devSandbox.style.display = 'none';
-        
-        // Reset Dev Simulation Buttons if active
-        simLostBtn.classList.add('hidden');
-        simFoundBtn.classList.remove('hidden');
-        
-        // Stop simulated location broker
-        if (typeof window.stopSimulatedLocation === 'function') {
-            window.stopSimulatedLocation();
-        }
-        
-        // 6. Clear GPS watch, polling interval, and reset states
-        if (watchId !== null) {
-            navigator.geolocation.clearWatch(watchId);
-            watchId = null;
-        }
-        if (pollIntervalId !== null) {
-            clearInterval(pollIntervalId);
-            pollIntervalId = null;
-        }
-        if (simWalkIntervalId !== null) {
-            clearInterval(simWalkIntervalId);
-            simWalkIntervalId = null;
-        }
-        lastGpsPosition = null;
-        isLocationIdentified = false;
-
-        // Clear saved session parameters from localStorage
-        localStorage.removeItem('nav_currentMode');
-        localStorage.removeItem('nav_activeDestination');
-        localStorage.removeItem('nav_isNavigating');
-
-        // 7. Destroy dynamic AR scene (stops webcam and releases resources)
-        destroyARScene();
-        
-        currentMode = null;
-        modeSelectionOverlay.classList.remove('hidden');
-    });
+    globalBackBtn.addEventListener('click', resetNavigationSession);
 
     // ==========================================
     // DYNAMIC FLOOR VIDEO DIRECTIONS SUBTITLES
@@ -582,11 +518,81 @@ window.addEventListener('load', async () => {
         }
     });
 
-    // Close Video Event
-    closeVideoBtn.addEventListener('click', () => {
+    function resetNavigationSession() {
         htmlVideoPlayer.pause();
         videoOverlay.classList.add('hidden');
-    });
+        destinationOverlay.classList.add('hidden');
+        navMenu.classList.add('hidden');
+        successOverlay.classList.add('hidden');
+        errorOverlay.classList.add('hidden');
+        htmlInstructionBar.classList.add('hidden');
+        
+        const arrowContainer = document.getElementById('centered-hud-container');
+        if (arrowContainer) {
+            arrowContainer.classList.add('hidden');
+        }
+
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        
+        isNavigating = false;
+        smoothedDistance = null;
+        
+        globalBackBtn.classList.add('hidden');
+        if (globalChangeRouteBtn) globalChangeRouteBtn.classList.add('hidden');
+        globalModeBadge.classList.add('hidden');
+        if (devSandbox) devSandbox.style.display = 'none';
+        
+        simLostBtn.classList.add('hidden');
+        simFoundBtn.classList.remove('hidden');
+        
+        if (typeof window.stopSimulatedLocation === 'function') {
+            window.stopSimulatedLocation();
+        }
+        
+        if (watchId !== null) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
+        if (pollIntervalId !== null) {
+            clearInterval(pollIntervalId);
+            pollIntervalId = null;
+        }
+        if (simWalkIntervalId !== null) {
+            clearInterval(simWalkIntervalId);
+            simWalkIntervalId = null;
+        }
+        lastGpsPosition = null;
+        isLocationIdentified = false;
+        window.activeDestinationConfig = null;
+        window.lastGpsPosition = null;
+
+        localStorage.removeItem('nav_currentMode');
+        localStorage.removeItem('nav_activeDestination');
+        localStorage.removeItem('nav_isNavigating');
+
+        destroyARScene();
+        
+        currentMode = null;
+        
+        // Remove style tag that blocked overlay flash
+        const flashStyles = document.querySelectorAll('style');
+        flashStyles.forEach(style => {
+            if (style.innerText.includes('#mode-selection-overlay')) {
+                style.remove();
+            }
+        });
+
+        modeSelectionOverlay.classList.remove('hidden');
+    }
+
+    // Close Video Event
+    closeVideoBtn.addEventListener('click', resetNavigationSession);
+    
+    // Close Arrival Event
+    const closeArrivalBtn = document.getElementById('close-arrival-btn');
+    if (closeArrivalBtn) {
+        closeArrivalBtn.addEventListener('click', resetNavigationSession);
+    }
 
     const arjsLoader = document.querySelector('.arjs-loader');
     if (arjsLoader) arjsLoader.style.display = 'none';

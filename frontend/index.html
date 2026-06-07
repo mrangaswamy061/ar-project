@@ -316,11 +316,16 @@
             80% { opacity: 1; }
             100% { transform: translateY(-80px); opacity: 0; }
         }
-
-        .hidden { display: none !important; }
+                .hidden { display: none !important; }
     </style>
 </head>
 <body style="margin: 0; overflow: hidden;">
+    <script>
+        // Prevent layout flash of mode selection overlay on page refresh/session restore
+        if (localStorage.getItem('nav_currentMode')) {
+            document.write('<style>#mode-selection-overlay { display: none !important; }</style>');
+        }
+    </script>
 
     <!-- Global Floating Controls & Badges -->
     <button id="global-back-btn" class="back-to-mode-btn hidden">
@@ -374,13 +379,14 @@
         <!-- Dynamic Overlay Text (Painted on Floor) -->
         <div id="video-directions-text"></div>
 
-        <!-- Final Destination Overlay (Centered, Flat, Readable) -->
-        <div id="destination-overlay" class="hidden" style="position: absolute; top: 30%; width: 100%; text-align: center; z-index: 100001; animation: pulse 2s infinite;">
-            <div style="font-size: 8rem; filter: drop-shadow(0 0 20px #10B981);">📍</div>
-            <h1 style="color: white; font-family: 'Outfit'; font-size: 3.5rem; text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 0 30px #10B981; margin: 10px 0 0 0; line-height: 1.2;">ARRIVED<br><span id="dest-room-name">1st Year BCA Classroom</span></h1>
-        </div>
-
         <button id="close-video-btn">Close Video</button>
+    </div>
+
+    <!-- Final Destination Overlay (Centered Glassmorphic Panel, Top-Level sibling) -->
+    <div id="destination-overlay" class="glass-panel hidden" style="position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.95); z-index: 100001; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: 0; border: none; padding: 25px;">
+        <div style="font-size: 8rem; filter: drop-shadow(0 0 20px #10B981); animation: pulse 2s infinite; margin-bottom: 20px;">📍</div>
+        <h1 style="color: white; font-family: 'Outfit'; font-size: 3rem; text-shadow: 0 0 25px rgba(16, 185, 129, 0.5); margin: 0 0 30px 0; line-height: 1.2; font-weight: 700;">ARRIVED!<br><span id="dest-room-name" style="font-size: 2rem; color: #10B981; display: block; margin-top: 15px;">1st Year BCA Classroom</span></h1>
+        <button id="close-arrival-btn" style="padding: 14px 40px; background: var(--success); color: white; border: none; border-radius: 50px; font-size: 1.15rem; font-weight: 700; cursor: pointer; box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4); transition: transform 0.2s, background-color 0.2s;">OK, Got It!</button>
     </div>
 
     <style>
@@ -408,7 +414,7 @@
     </div>
 
     <!-- UI Overlays -->
-    <div id="loader" class="glass-panel centered-panel">
+    <div id="loader" class="glass-panel centered-panel hidden">
         <div class="spinner"></div>
         <h2>Initializing Camera...</h2>
         <p>Loading image recognition models</p>
