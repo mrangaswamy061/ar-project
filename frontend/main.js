@@ -270,7 +270,7 @@ window.addEventListener('load', async () => {
                 if (savedDest && savedNavigating) {
                     const hudNavGroup = getHudNavGroup();
                     if (hudNavGroup) hudNavGroup.setAttribute('visible', 'true');
-                    const arrowContainer = document.getElementById('html-hud-arrow-container');
+                    const arrowContainer = document.getElementById('centered-hud-container');
                     if (arrowContainer) arrowContainer.classList.remove('hidden');
                 }
 
@@ -449,7 +449,7 @@ window.addEventListener('load', async () => {
         successOverlay.classList.add('hidden');
         errorOverlay.classList.add('hidden');
         htmlInstructionBar.classList.add('hidden');
-        const arrowContainer = document.getElementById('html-hud-arrow-container');
+        const arrowContainer = document.getElementById('centered-hud-container');
         if (arrowContainer) {
             arrowContainer.classList.add('hidden');
         }
@@ -632,7 +632,7 @@ window.addEventListener('load', async () => {
                 // If within 10 meters, show Arrival screen!
                 if (smoothedDistance < 10) {
                     htmlInstructionBar.classList.add('hidden');
-                    const arrowContainer = document.getElementById('html-hud-arrow-container');
+                    const arrowContainer = document.getElementById('centered-hud-container');
                     if (arrowContainer) {
                         arrowContainer.classList.add('hidden');
                     }
@@ -859,7 +859,7 @@ window.addEventListener('load', async () => {
             const hudNavGroup = getHudNavGroup();
             if (hudNavGroup) hudNavGroup.setAttribute('visible', 'true');
             
-            const arrowContainer = document.getElementById('html-hud-arrow-container');
+            const arrowContainer = document.getElementById('centered-hud-container');
             if (arrowContainer) arrowContainer.classList.remove('hidden');
             
             // Show the "Simulate Arrival" button in sandbox
@@ -997,7 +997,7 @@ window.addEventListener('load', async () => {
         isNavigating = false;
         smoothedDistance = null;
 
-        const arrowContainer = document.getElementById('html-hud-arrow-container');
+        const arrowContainer = document.getElementById('centered-hud-container');
         if (arrowContainer) {
             arrowContainer.classList.add('hidden');
         }
@@ -1049,13 +1049,14 @@ window.addEventListener('load', async () => {
     
     function animate2DArrow() {
         if (isNavigating && currentMode === 'ar') {
-            const arrowEl = document.getElementById('html-hud-arrow');
+            const arrowWrapper = document.getElementById('hud-nav-arrow-wrapper');
             const cameraEl = document.querySelector('[gps-camera]');
             const destPin = document.getElementById('destination-pin');
+            const radarRing = document.getElementById('hud-radar-ring');
+            const alignmentGlow = document.getElementById('hud-alignment-glow');
             
-            if (arrowEl && cameraEl && cameraEl.object3D && destPin && destPin.object3D) {
+            if (arrowWrapper && cameraEl && cameraEl.object3D && destPin && destPin.object3D) {
                 // Project destination pin coordinates to camera's local space
-                // A-Frame exposes THREE under global namespace
                 if (typeof THREE !== 'undefined') {
                     const localPos = new THREE.Vector3();
                     destPin.object3D.getWorldPosition(localPos);
@@ -1071,10 +1072,34 @@ window.addEventListener('load', async () => {
                     if (diff < 0) diff += 360;
                     diff -= 180;
                     
-                    const lerpFactor = 0.12; // Damping coefficient
+                    const lerpFactor = 0.12; // Damping coefficient (smooth but responsive)
                     current2DArrowAngle = (current2DArrowAngle + diff * lerpFactor + 360) % 360;
                     
-                    arrowEl.style.transform = `rotate(${current2DArrowAngle}deg)`;
+                    arrowWrapper.style.transform = `rotate(${current2DArrowAngle}deg)`;
+
+                    // Target alignment check (if angle is within 15 degrees of forward direction)
+                    const angleDiffFromCenter = Math.abs(current2DArrowAngle > 180 ? current2DArrowAngle - 360 : current2DArrowAngle);
+                    if (angleDiffFromCenter < 15) {
+                        // Pointing directly towards destination!
+                        if (radarRing) {
+                            radarRing.style.borderColor = '#10B981';
+                            radarRing.style.borderStyle = 'solid';
+                            radarRing.style.boxShadow = '0 0 30px rgba(16, 185, 129, 0.4)';
+                        }
+                        if (alignmentGlow) {
+                            alignmentGlow.style.opacity = '1';
+                        }
+                    } else {
+                        // Not aligned
+                        if (radarRing) {
+                            radarRing.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                            radarRing.style.borderStyle = 'dashed';
+                            radarRing.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.1)';
+                        }
+                        if (alignmentGlow) {
+                            alignmentGlow.style.opacity = '0';
+                        }
+                    }
                 }
             }
         }
