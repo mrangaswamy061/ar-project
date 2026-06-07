@@ -1129,7 +1129,7 @@ window.addEventListener('load', async () => {
 
                 // 1. Try to get WebGL local space coordinate from AR.js if close/valid
                 if (destPin && destPin.object3D) {
-                    const localPos = new THREE.Vector3();
+                    const localPos = new window.THREE.Vector3();
                     destPin.object3D.getWorldPosition(localPos);
                     cameraEl.object3D.worldToLocal(localPos);
                     
