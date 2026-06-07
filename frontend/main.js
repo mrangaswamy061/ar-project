@@ -80,8 +80,8 @@ window.addEventListener('load', async () => {
                 <a-camera gps-camera="minAccuracy: 10000; gpsMinDistance: 1;" rotation-reader>
                     <a-entity id="hud-nav-group" position="0 -0.3 -1.5" visible="false">
                         <a-entity id="hud-nav-arrow" compass-arrow>
-                            <a-cone color="#10B981" radius-bottom="0.08" radius-top="0" height="0.3" rotation="90 0 0" position="0 0 -0.15"></a-cone>
-                            <a-cylinder color="#10B981" radius="0.04" height="0.3" rotation="90 0 0" position="0 0 0.15"></a-cylinder>
+                            <a-cone color="#10B981" radius-bottom="0.08" radius-top="0" height="0.3" rotation="-90 0 0" position="0 0 -0.15"></a-cone>
+                            <a-cylinder color="#10B981" radius="0.04" height="0.3" rotation="-90 0 0" position="0 0 0.15"></a-cylinder>
                         </a-entity>
                         <a-text id="hud-nav-distance" value="" align="center" color="#ffffff" position="0 -0.4 0" scale="0.5 0.5 0.5" font="kelsonsans"></a-text>
                     </a-entity>
@@ -447,6 +447,11 @@ window.addEventListener('load', async () => {
         // Reset Dev Simulation Buttons if active
         simLostBtn.classList.add('hidden');
         simFoundBtn.classList.remove('hidden');
+        
+        // Stop simulated location broker
+        if (typeof window.stopSimulatedLocation === 'function') {
+            window.stopSimulatedLocation();
+        }
         
         // 6. Clear GPS watch, polling interval, and reset states
         if (watchId !== null) {
@@ -861,21 +866,10 @@ window.addEventListener('load', async () => {
         let simLat = 13.336820;
         let simLng = 77.130120;
 
-        // Helper function to dispatch GPS update
-        const dispatchSimGps = (lat, lng) => {
-            const fakeGpsEvent = new CustomEvent('gps-camera-update-position', {
-                detail: {
-                    position: {
-                        latitude: lat,
-                        longitude: lng
-                    }
-                }
-            });
-            window.dispatchEvent(fakeGpsEvent);
-        };
-
-        // Dispatch initial simulated position
-        dispatchSimGps(simLat, simLng);
+        // Use the global location broker to simulate coordinates
+        if (typeof window.setSimulatedLocation === 'function') {
+            window.setSimulatedLocation(simLat, simLng);
+        }
 
         // Simulate markerFound UI logic
         loader.classList.add('hidden');
@@ -908,7 +902,9 @@ window.addEventListener('load', async () => {
                         simLng += diffLng * 0.15;
                     }
                     
-                    dispatchSimGps(simLat, simLng);
+                    if (typeof window.setSimulatedLocation === 'function') {
+                        window.setSimulatedLocation(simLat, simLng);
+                    }
                 }
             }
         }, 1500);
@@ -933,6 +929,11 @@ window.addEventListener('load', async () => {
 
     simLostBtn.addEventListener('click', () => {
         isLocationIdentified = false;
+
+        // Stop simulated location broker
+        if (typeof window.stopSimulatedLocation === 'function') {
+            window.stopSimulatedLocation();
+        }
 
         // Clear simulated walk
         if (simWalkIntervalId) {

@@ -5,6 +5,146 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Campus AR - Visual Recognition</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script>
+        // ==========================================
+        // UNIFIED GEOLOCATION BROKER & SIMULATOR
+        // ==========================================
+        (function() {
+            let isSimulating = false;
+            let simCoords = {
+                latitude: 13.336820,
+                longitude: 77.130120,
+                accuracy: 5,
+                altitude: 0,
+                altitudeAccuracy: 5,
+                heading: 0,
+                speed: 0
+            };
+            
+            const brokerWatchers = new Map();
+            let brokerWatcherIdCounter = 1;
+            let nativeWatchId = null;
+            let lastKnownCoords = null;
+
+            const nativeGeolocation = {
+                getCurrentPosition: navigator.geolocation.getCurrentPosition.bind(navigator.geolocation),
+                watchPosition: navigator.geolocation.watchPosition.bind(navigator.geolocation),
+                clearWatch: navigator.geolocation.clearWatch.bind(navigator.geolocation)
+            };
+
+            function distributePosition(coords) {
+                lastKnownCoords = coords;
+                brokerWatchers.forEach((watcher) => {
+                    if (watcher.success) {
+                        watcher.success({
+                            coords: { ...coords },
+                            timestamp: Date.now()
+                        });
+                    }
+                });
+            }
+
+            function startNativeTracking() {
+                if (nativeWatchId !== null || isSimulating) return;
+                
+                nativeWatchId = nativeGeolocation.watchPosition(
+                    (position) => {
+                        distributePosition(position.coords);
+                    },
+                    (error) => {
+                        brokerWatchers.forEach((watcher) => {
+                            if (watcher.error) watcher.error(error);
+                        });
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 15000
+                    }
+                );
+            }
+
+            function stopNativeTracking() {
+                if (nativeWatchId !== null) {
+                    nativeGeolocation.clearWatch(nativeWatchId);
+                    nativeWatchId = null;
+                }
+            }
+
+            navigator.geolocation.getCurrentPosition = function (success, error, options) {
+                if (isSimulating) {
+                    setTimeout(() => {
+                        success({
+                            coords: { ...simCoords },
+                            timestamp: Date.now()
+                        });
+                    }, 0);
+                } else if (lastKnownCoords) {
+                    setTimeout(() => {
+                        success({
+                            coords: { ...lastKnownCoords },
+                            timestamp: Date.now()
+                        });
+                    }, 0);
+                } else {
+                    nativeGeolocation.getCurrentPosition(success, error, options);
+                }
+            };
+
+            navigator.geolocation.watchPosition = function (success, error, options) {
+                const id = brokerWatcherIdCounter++;
+                brokerWatchers.set(id, { success, error, options });
+                
+                if (isSimulating) {
+                    setTimeout(() => {
+                        success({
+                            coords: { ...simCoords },
+                            timestamp: Date.now()
+                        });
+                    }, 0);
+                } else {
+                    startNativeTracking();
+                    if (lastKnownCoords) {
+                        setTimeout(() => {
+                            success({
+                                coords: { ...lastKnownCoords },
+                                timestamp: Date.now()
+                            });
+                        }, 0);
+                    }
+                }
+                return id;
+            };
+
+            navigator.geolocation.clearWatch = function (id) {
+                brokerWatchers.delete(id);
+                if (brokerWatchers.size === 0) {
+                    stopNativeTracking();
+                }
+            };
+
+            window.setSimulatedLocation = function (lat, lng) {
+                isSimulating = true;
+                stopNativeTracking();
+                
+                simCoords.latitude = lat;
+                simCoords.longitude = lng;
+                
+                distributePosition(simCoords);
+            };
+
+            window.stopSimulatedLocation = function () {
+                isSimulating = false;
+                if (brokerWatchers.size > 0) {
+                    startNativeTracking();
+                }
+            };
+            
+            window.isSimulatingLocation = function() {
+                return isSimulating;
+            };
+        })();
+    </script>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script>
         // Intercept AR.js hardcoded ugly alert boxes for camera errors
@@ -26,27 +166,33 @@
     <link rel="stylesheet" href="./style.css">
     
     <script>
-        // Custom A-Frame component to flawlessly rotate the HUD arrow
-        // by reading the already-smoothed THREE.js camera rotation directly (in radians)
+        // Custom A-Frame component to rotate the HUD arrow using local coordinate projection
         AFRAME.registerComponent('compass-arrow', {
             tick: function () {
-                if (window.targetHeading === undefined || window.targetHeading === null) return;
+                const destPin = document.getElementById('destination-pin');
+                if (!destPin || !destPin.object3D || !destPin.getAttribute('visible')) return;
 
                 const cameraEl = document.querySelector('[gps-camera]');
                 if (!cameraEl || !cameraEl.object3D) return;
 
-                // THREE.js updates object3D.rotation directly in radians for high performance
-                const cameraYRad = cameraEl.object3D.rotation.y;
-                const cameraY = cameraYRad * (180 / Math.PI); // Convert to degrees
-                
-                // AR.js maps compass to Y-rotation: North=0, East=-90, South=-180, West=90
-                let compassHeading = -cameraY;
-                compassHeading = (compassHeading % 360 + 360) % 360;
+                // Ensure world matrices are calculated and up-to-date
+                destPin.object3D.updateMatrixWorld();
+                cameraEl.object3D.updateMatrixWorld();
 
-                // Calculate the exact local rotation for the arrow
-                let arrowRotY = compassHeading - window.targetHeading;
-                
-                this.el.setAttribute('rotation', `0 ${arrowRotY} 0`);
+                // Get target world position
+                const destPos = new THREE.Vector3();
+                destPin.object3D.getWorldPosition(destPos);
+
+                // Project into camera local coordinates
+                cameraEl.object3D.worldToLocal(destPos);
+
+                // Calculate local rotation Y to point at target (XZ plane)
+                // -destPos.x because positive Y-rotation in THREE.js is counter-clockwise.
+                // -destPos.z because forward is -Z in THREE.js.
+                const angleRad = Math.atan2(-destPos.x, -destPos.z);
+                const angleDeg = angleRad * (180 / Math.PI);
+
+                this.el.setAttribute('rotation', `0 ${angleDeg} 0`);
             }
         });
     </script>
