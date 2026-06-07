@@ -131,6 +131,7 @@ window.addEventListener('load', async () => {
     const modeVideoCard = document.getElementById('mode-video-card');
     const modeArCard = document.getElementById('mode-ar-card');
     const globalBackBtn = document.getElementById('global-back-btn');
+    const globalChangeRouteBtn = document.getElementById('global-change-route-btn');
     const globalModeBadge = document.getElementById('global-mode-badge');
     const devSandbox = document.getElementById('dev-sandbox');
 
@@ -239,6 +240,7 @@ window.addEventListener('load', async () => {
             currentMode = savedMode;
             modeSelectionOverlay.classList.add('hidden');
             globalBackBtn.classList.remove('hidden');
+            if (globalChangeRouteBtn) globalChangeRouteBtn.classList.remove('hidden');
             globalModeBadge.classList.remove('hidden');
             
             if (currentMode === 'video') {
@@ -287,6 +289,7 @@ window.addEventListener('load', async () => {
         localStorage.setItem('nav_currentMode', 'video');
         modeSelectionOverlay.classList.add('hidden');
         globalBackBtn.classList.remove('hidden');
+        if (globalChangeRouteBtn) globalChangeRouteBtn.classList.remove('hidden');
         globalModeBadge.classList.remove('hidden');
         globalModeBadge.innerText = "Video Walkthrough 📹";
         globalModeBadge.style.borderColor = "var(--primary)";
@@ -309,6 +312,7 @@ window.addEventListener('load', async () => {
         localStorage.setItem('nav_currentMode', 'ar');
         modeSelectionOverlay.classList.add('hidden');
         globalBackBtn.classList.remove('hidden');
+        if (globalChangeRouteBtn) globalChangeRouteBtn.classList.remove('hidden');
         globalModeBadge.classList.remove('hidden');
         globalModeBadge.innerText = "Live AR Navigation 🧭";
         globalModeBadge.style.borderColor = "var(--success)";
@@ -328,6 +332,16 @@ window.addEventListener('load', async () => {
     });
 
     function startARTracking() {
+        let loaderGpsTimeout = setTimeout(() => {
+            const loaderDesc = loader.querySelector('p');
+            if (loaderDesc && !isLocationIdentified) {
+                loaderDesc.innerHTML = htmlPolicy.createHTML(`GPS taking too long? <button id="loader-sim-btn" style="background:var(--success); border:none; padding:8px 16px; border-radius:8px; color:white; font-family:'Outfit'; cursor:pointer; font-weight:bold; margin-top:10px; display:block; margin-left:auto; margin-right:auto; box-shadow:0 4px 10px rgba(0,0,0,0.3);">Use Simulation Mode</button>`);
+                document.getElementById('loader-sim-btn')?.addEventListener('click', () => {
+                    document.getElementById('sim-found-btn')?.click();
+                });
+            }
+        }, 5000);
+
         // Request DeviceOrientation permission on iOS
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
             DeviceOrientationEvent.requestPermission()
@@ -349,6 +363,7 @@ window.addEventListener('load', async () => {
         if (navigator.geolocation) {
             watchId = navigator.geolocation.watchPosition(
                 (position) => {
+                    if (loaderGpsTimeout) clearTimeout(loaderGpsTimeout);
                     const firstTime = !lastGpsPosition;
                     lastGpsPosition = {
                         latitude: position.coords.latitude,
@@ -386,6 +401,7 @@ window.addEventListener('load', async () => {
                     }
                 },
                 (err) => {
+                    if (loaderGpsTimeout) clearTimeout(loaderGpsTimeout);
                     console.error("GPS Watch Error:", err);
                     loader.classList.add('hidden');
                     successOverlay.classList.add('hidden');
@@ -461,8 +477,9 @@ window.addEventListener('load', async () => {
         isNavigating = false;
         smoothedDistance = null;
         
-        // 5. Hide back button, badge, and dev sandbox
+        // 5. Hide back button, badge, change route button, and dev sandbox
         globalBackBtn.classList.add('hidden');
+        if (globalChangeRouteBtn) globalChangeRouteBtn.classList.add('hidden');
         globalModeBadge.classList.add('hidden');
         if (devSandbox) devSandbox.style.display = 'none';
         
@@ -1019,6 +1036,16 @@ window.addEventListener('load', async () => {
         simLostBtn.classList.add('hidden');
         simFoundBtn.classList.remove('hidden');
     });
+
+    // Change Route Button click handler
+    if (globalChangeRouteBtn) {
+        globalChangeRouteBtn.addEventListener('click', () => {
+            const navMenu = document.getElementById('nav-menu');
+            if (navMenu) {
+                navMenu.classList.toggle('hidden');
+            }
+        });
+    }
 
     // ==========================================
     // COURSES MODAL INTERACTIVE LOGIC
