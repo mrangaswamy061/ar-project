@@ -1104,14 +1104,45 @@ window.addEventListener('load', async () => {
             const alignmentGlow = document.getElementById('hud-alignment-glow');
             
             const destPin = document.getElementById('destination-pin');
-            if (arrowWrapper && cameraEl && cameraEl.object3D && destPin && destPin.object3D) {
-                // 1. Get destination's position in camera's local space
-                const localPos = new THREE.Vector3();
-                destPin.object3D.getWorldPosition(localPos);
-                cameraEl.object3D.worldToLocal(localPos);
+            if (arrowWrapper && cameraEl && cameraEl.object3D && window.lastGpsPosition && window.activeDestinationConfig) {
+                let targetAngle = 0;
+                let useMathematicalFallback = true;
 
-                // 2. 2D Screen Rotation = angle around local Y-axis
-                const targetAngle = (Math.atan2(localPos.x, -localPos.z) * 180 / Math.PI + 360) % 360;
+                // 1. Try to get WebGL local space coordinate from AR.js if close/valid
+                if (destPin && destPin.object3D) {
+                    const localPos = new THREE.Vector3();
+                    destPin.object3D.getWorldPosition(localPos);
+                    cameraEl.object3D.worldToLocal(localPos);
+                    
+                    if (localPos.lengthSq() > 0.1) {
+                        targetAngle = (Math.atan2(localPos.x, -localPos.z) * 180 / Math.PI + 360) % 360;
+                        useMathematicalFallback = false;
+                    }
+                }
+
+                // 2. Long-range mathematical fallback: GPS bearing + device compass heading
+                if (useMathematicalFallback) {
+                    const lat1 = window.lastGpsPosition.latitude;
+                    const lon1 = window.lastGpsPosition.longitude;
+                    const lat2 = window.activeDestinationConfig.lat;
+                    const lon2 = window.activeDestinationConfig.lng;
+
+                    const φ1 = lat1 * Math.PI / 180;
+                    const φ2 = lat2 * Math.PI / 180;
+                    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+                    const y = Math.sin(Δλ) * Math.cos(φ2);
+                    const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+                    const bearing = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+
+                    let deviceHeading = window.deviceHeading;
+                    if (deviceHeading === undefined || deviceHeading === null) {
+                        const cameraY = cameraEl.object3D.rotation.y * (180 / Math.PI);
+                        deviceHeading = (360 - cameraY) % 360;
+                    }
+
+                    targetAngle = (bearing - deviceHeading + 360) % 360;
+                }
 
                 // Shortest path interpolation (lerp) for smooth rotation
                 let diff = targetAngle - current2DArrowAngle;
