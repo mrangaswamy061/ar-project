@@ -221,15 +221,55 @@ window.addEventListener('load', async () => {
     }
     
     fetchNavigationData();
+    restoreSession();
 
     // Initially hide dev sandbox overlay until AR mode is active
     if (devSandbox) devSandbox.style.display = 'none';
+
+    // ==========================================
+    // RESTORE STATE FROM LOCALSTORAGE (Accidental refresh / reload)
+    // ==========================================
+    function restoreSession() {
+        const savedMode = localStorage.getItem('nav_currentMode');
+        if (savedMode) {
+            currentMode = savedMode;
+            modeSelectionOverlay.classList.add('hidden');
+            globalBackBtn.classList.remove('hidden');
+            globalModeBadge.classList.remove('hidden');
+            
+            if (currentMode === 'video') {
+                globalModeBadge.innerText = "Video Walkthrough 📹";
+                globalModeBadge.style.borderColor = "var(--primary)";
+                globalModeBadge.style.color = "#a5b4fc";
+                if (devSandbox) devSandbox.style.display = 'none';
+                loader.classList.add('hidden');
+                errorOverlay.classList.add('hidden');
+                successOverlay.classList.add('hidden');
+                navMenu.classList.remove('hidden');
+            } else if (currentMode === 'ar') {
+                globalModeBadge.innerText = "Live AR Navigation 🧭";
+                globalModeBadge.style.borderColor = "var(--success)";
+                globalModeBadge.style.color = "#6ee7b7";
+                
+                // Show loader while we wait for location
+                loader.classList.remove('hidden');
+                const loaderTitle = loader.querySelector('h2');
+                const loaderDesc = loader.querySelector('p');
+                if (loaderTitle) loaderTitle.innerText = "Reconnecting GPS & Camera...";
+                if (loaderDesc) loaderDesc.innerText = "Restoring your active navigation session.";
+
+                initARScene();
+                startARTracking();
+            }
+        }
+    }
 
     // ==========================================
     // MODE SELECTION INTERFACE CONTROLS
     // ==========================================
     modeVideoCard.addEventListener('click', () => {
         currentMode = 'video';
+        localStorage.setItem('nav_currentMode', 'video');
         modeSelectionOverlay.classList.add('hidden');
         globalBackBtn.classList.remove('hidden');
         globalModeBadge.classList.remove('hidden');
@@ -251,6 +291,7 @@ window.addEventListener('load', async () => {
 
     modeArCard.addEventListener('click', () => {
         currentMode = 'ar';
+        localStorage.setItem('nav_currentMode', 'ar');
         modeSelectionOverlay.classList.add('hidden');
         globalBackBtn.classList.remove('hidden');
         globalModeBadge.classList.remove('hidden');
@@ -268,6 +309,10 @@ window.addEventListener('load', async () => {
         // Initialize dynamic AR scene
         initARScene();
         
+        startARTracking();
+    });
+
+    function startARTracking() {
         // Request DeviceOrientation permission on iOS
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
             DeviceOrientationEvent.requestPermission()
@@ -304,15 +349,22 @@ window.addEventListener('load', async () => {
                     window.dispatchEvent(gpsEvent);
 
                     if (firstTime) {
-                        // Hide loader, show Success Overlay
+                        // Hide loader
                         loader.classList.add('hidden');
                         errorOverlay.classList.add('hidden');
-                        successOverlay.classList.remove('hidden');
                         
-                        setTimeout(() => {
-                            successOverlay.classList.add('hidden');
+                        // If we are restoring an existing active session, go straight to navMenu without Success overlay delay
+                        const savedDest = localStorage.getItem('nav_activeDestination');
+                        const savedNavigating = localStorage.getItem('nav_isNavigating') === 'true';
+                        if (savedDest && savedNavigating) {
                             navMenu.classList.remove('hidden');
-                        }, 2000);
+                        } else {
+                            successOverlay.classList.remove('hidden');
+                            setTimeout(() => {
+                                successOverlay.classList.add('hidden');
+                                navMenu.classList.remove('hidden');
+                            }, 2000);
+                        }
                     }
                 },
                 (err) => {
@@ -366,7 +418,7 @@ window.addEventListener('load', async () => {
             if (errTitle) errTitle.innerText = "GPS Unsupported ❌";
             if (errDesc) errDesc.innerText = "Your browser or device does not support GPS navigation.";
         }
-    });
+    }
 
     globalBackBtn.addEventListener('click', () => {
         // 1. Pause video walkthroughs and hide video
@@ -406,6 +458,11 @@ window.addEventListener('load', async () => {
         }
         lastGpsPosition = null;
         isLocationIdentified = false;
+
+        // Clear saved session parameters from localStorage
+        localStorage.removeItem('nav_currentMode');
+        localStorage.removeItem('nav_activeDestination');
+        localStorage.removeItem('nav_isNavigating');
 
         // 7. Destroy dynamic AR scene (stops webcam and releases resources)
         destroyARScene();
@@ -545,6 +602,8 @@ window.addEventListener('load', async () => {
                     destinationOverlay.classList.remove('hidden');
                     // Stop navigation to prevent spamming
                     isNavigating = false;
+                    localStorage.removeItem('nav_isNavigating');
+                    localStorage.removeItem('nav_activeDestination');
                 }
             }
         }
@@ -601,6 +660,17 @@ window.addEventListener('load', async () => {
             // Attach dynamic listener
             btn.addEventListener('click', () => handleDestinationSelect(btn, dest));
         });
+
+        // Restore active selection after rendering destinations if saved in localStorage
+        const savedDest = localStorage.getItem('nav_activeDestination');
+        const savedNavigating = localStorage.getItem('nav_isNavigating') === 'true';
+        if (savedDest && savedNavigating) {
+            const activeBtn = destContainer.querySelector(`[data-dest="${savedDest}"]`);
+            if (activeBtn) {
+                // Programmatically trigger selection
+                activeBtn.click();
+            }
+        }
     }
 
     function logTelemetry(destinationName, mode) {
@@ -640,6 +710,10 @@ window.addEventListener('load', async () => {
         htmlInstructionText.innerText = "Acquiring GPS Signal to calculate route...";
         htmlInstructionText.style.color = "white";
         htmlInstructionBar.classList.remove('hidden');
+
+        // Save active destination selection state to localStorage
+        localStorage.setItem('nav_activeDestination', destConfig.id);
+        localStorage.setItem('nav_isNavigating', 'true');
 
         // Add timeout warning if GPS takes too long (10 seconds)
         let gpsTimeout = setTimeout(() => {
