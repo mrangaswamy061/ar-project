@@ -1103,34 +1103,15 @@ window.addEventListener('load', async () => {
             const radarRing = document.getElementById('hud-radar-ring');
             const alignmentGlow = document.getElementById('hud-alignment-glow');
             
-            if (arrowWrapper && window.lastGpsPosition && window.activeDestinationConfig) {
-                // 1. Calculate GPS bearing to destination mathematically
-                const lat1 = window.lastGpsPosition.latitude;
-                const lon1 = window.lastGpsPosition.longitude;
-                const lat2 = window.activeDestinationConfig.lat;
-                const lon2 = window.activeDestinationConfig.lng;
+            const destPin = document.getElementById('destination-pin');
+            if (arrowWrapper && cameraEl && cameraEl.object3D && destPin && destPin.object3D) {
+                // 1. Get destination's position in camera's local space
+                const localPos = new THREE.Vector3();
+                destPin.object3D.getWorldPosition(localPos);
+                cameraEl.object3D.worldToLocal(localPos);
 
-                const φ1 = lat1 * Math.PI / 180;
-                const φ2 = lat2 * Math.PI / 180;
-                const Δλ = (lon2 - lon1) * Math.PI / 180;
-
-                const y = Math.sin(Δλ) * Math.cos(φ2);
-                const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
-                const bearing = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-
-                // 2. Read absolute device compass heading, fallback to WebGL camera yaw
-                let deviceHeading = window.deviceHeading;
-                if (deviceHeading === undefined || deviceHeading === null) {
-                    if (cameraEl && cameraEl.object3D) {
-                        const cameraY = cameraEl.object3D.rotation.y * (180 / Math.PI);
-                        deviceHeading = (360 - cameraY) % 360;
-                    } else {
-                        deviceHeading = 0;
-                    }
-                }
-
-                // 3. 2D Screen Rotation = bearing - deviceHeading
-                const targetAngle = (bearing - deviceHeading + 360) % 360;
+                // 2. 2D Screen Rotation = angle around local Y-axis
+                const targetAngle = (Math.atan2(localPos.x, -localPos.z) * 180 / Math.PI + 360) % 360;
 
                 // Shortest path interpolation (lerp) for smooth rotation
                 let diff = targetAngle - current2DArrowAngle;
