@@ -368,6 +368,15 @@ window.addEventListener('load', async () => {
         // Show developer sandbox for simulating markers
         if (devSandbox) devSandbox.style.display = 'flex';
 
+        // Automatically simulate GPS connection on laptops/desktops to prevent getting stuck
+        const isDesktop = !/Mobi|Android/i.test(navigator.userAgent);
+        if (isDesktop) {
+            setTimeout(() => {
+                const simBtn = document.getElementById('sim-found-btn');
+                if (simBtn) simBtn.click();
+            }, 1000);
+        }
+
         // Start watching geolocation
         if (navigator.geolocation) {
             watchId = navigator.geolocation.watchPosition(
@@ -791,6 +800,16 @@ window.addEventListener('load', async () => {
         // Save active destination selection state to sessionStorage
         sessionStorage.setItem('nav_activeDestination', destConfig.id);
         sessionStorage.setItem('nav_isNavigating', 'true');
+
+        // If on laptop/desktop or in simulation mode, restart the simulated walk to the new destination
+        const isDesktop = !/Mobi|Android/i.test(navigator.userAgent);
+        const isSimulating = window.isSimulatingLocation ? window.isSimulatingLocation() : false;
+        if (currentMode === 'ar' && (isDesktop || isSimulating)) {
+            const simBtn = document.getElementById('sim-found-btn');
+            if (simBtn) {
+                simBtn.click();
+            }
+        }
 
         // Add timeout warning if GPS takes too long (10 seconds)
         let gpsTimeout = setTimeout(() => {
