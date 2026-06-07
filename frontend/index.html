@@ -33,10 +33,13 @@
                 if (window.targetHeading === undefined || window.targetHeading === null) return;
 
                 const cameraEl = document.querySelector('[gps-camera]');
-                if (!cameraEl) return;
+                if (!cameraEl || !cameraEl.object3D) return;
 
+                // THREE.js updates object3D.rotation directly in radians for high performance
+                const cameraYRad = cameraEl.object3D.rotation.y;
+                const cameraY = cameraYRad * (180 / Math.PI); // Convert to degrees
+                
                 // AR.js maps compass to Y-rotation: North=0, East=-90, South=-180, West=90
-                const cameraY = cameraEl.getAttribute('rotation').y;
                 let compassHeading = -cameraY;
                 compassHeading = (compassHeading % 360 + 360) % 360;
 
