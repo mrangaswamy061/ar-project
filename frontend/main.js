@@ -142,6 +142,7 @@ window.addEventListener('load', async () => {
     let lastGpsPosition = null;
     let watchId = null;
     let pollIntervalId = null;
+    let simWalkIntervalId = null;
 
     // Handle AR.js Camera Permission Errors gracefully!
     window.addEventListener('camera-error', (err) => {
@@ -455,6 +456,10 @@ window.addEventListener('load', async () => {
         if (pollIntervalId !== null) {
             clearInterval(pollIntervalId);
             pollIntervalId = null;
+        }
+        if (simWalkIntervalId !== null) {
+            clearInterval(simWalkIntervalId);
+            simWalkIntervalId = null;
         }
         lastGpsPosition = null;
         isLocationIdentified = false;
@@ -847,16 +852,30 @@ window.addEventListener('load', async () => {
     const simArriveBtn = document.getElementById('sim-arrive-btn');
 
     simFoundBtn.addEventListener('click', () => {
-        // Dispatch a fake GPS event to bypass AR.js location waiting completely
-        const fakeGpsEvent = new CustomEvent('gps-camera-update-position', {
-            detail: {
-                position: {
-                    latitude: 13.336820,
-                    longitude: 77.130120
+        // Clear any existing walk simulator
+        if (simWalkIntervalId) {
+            clearInterval(simWalkIntervalId);
+            simWalkIntervalId = null;
+        }
+
+        let simLat = 13.336820;
+        let simLng = 77.130120;
+
+        // Helper function to dispatch GPS update
+        const dispatchSimGps = (lat, lng) => {
+            const fakeGpsEvent = new CustomEvent('gps-camera-update-position', {
+                detail: {
+                    position: {
+                        latitude: lat,
+                        longitude: lng
+                    }
                 }
-            }
-        });
-        window.dispatchEvent(fakeGpsEvent);
+            });
+            window.dispatchEvent(fakeGpsEvent);
+        };
+
+        // Dispatch initial simulated position
+        dispatchSimGps(simLat, simLng);
 
         // Simulate markerFound UI logic
         loader.classList.add('hidden');
@@ -867,9 +886,39 @@ window.addEventListener('load', async () => {
             simFoundBtn.classList.add('hidden');
             simLostBtn.classList.remove('hidden');
         }
+
+        // Start simulated walk towards destination
+        simWalkIntervalId = setInterval(() => {
+            if (isNavigating && activeDestination) {
+                const destConfig = navigationConfig[activeDestination];
+                if (destConfig && destConfig.lat && destConfig.lng) {
+                    // Move simulated coordinate closer to destination on each tick
+                    const diffLat = destConfig.lat - simLat;
+                    const diffLng = destConfig.lng - simLng;
+                    
+                    // If very close, snap to destination
+                    if (Math.abs(diffLat) < 0.000005 && Math.abs(diffLng) < 0.000005) {
+                        simLat = destConfig.lat;
+                        simLng = destConfig.lng;
+                        clearInterval(simWalkIntervalId);
+                        simWalkIntervalId = null;
+                    } else {
+                        // Move 15% closer
+                        simLat += diffLat * 0.15;
+                        simLng += diffLng * 0.15;
+                    }
+                    
+                    dispatchSimGps(simLat, simLng);
+                }
+            }
+        }, 1500);
     });
 
     simArriveBtn.addEventListener('click', () => {
+        if (simWalkIntervalId) {
+            clearInterval(simWalkIntervalId);
+            simWalkIntervalId = null;
+        }
         if (isNavigating && currentMode === 'ar' && activeDestination) {
             const destConfig = navigationConfig[activeDestination];
             htmlInstructionBar.classList.add('hidden');
@@ -877,11 +926,19 @@ window.addEventListener('load', async () => {
             if (destRoomSpan) destRoomSpan.innerText = destConfig.name || 'Destination';
             destinationOverlay.classList.remove('hidden');
             isNavigating = false;
+            localStorage.removeItem('nav_isNavigating');
+            localStorage.removeItem('nav_activeDestination');
         }
     });
 
     simLostBtn.addEventListener('click', () => {
         isLocationIdentified = false;
+
+        // Clear simulated walk
+        if (simWalkIntervalId) {
+            clearInterval(simWalkIntervalId);
+            simWalkIntervalId = null;
+        }
 
         if (currentMode === 'ar') {
             // Do not hide the nav menu when GPS is lost, let user still select
