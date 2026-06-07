@@ -270,6 +270,8 @@ window.addEventListener('load', async () => {
                 if (savedDest && savedNavigating) {
                     const hudNavGroup = getHudNavGroup();
                     if (hudNavGroup) hudNavGroup.setAttribute('visible', 'true');
+                    const arrowContainer = document.getElementById('html-hud-arrow-container');
+                    if (arrowContainer) arrowContainer.classList.remove('hidden');
                 }
 
                 startARTracking();
@@ -447,6 +449,10 @@ window.addEventListener('load', async () => {
         successOverlay.classList.add('hidden');
         errorOverlay.classList.add('hidden');
         htmlInstructionBar.classList.add('hidden');
+        const arrowContainer = document.getElementById('html-hud-arrow-container');
+        if (arrowContainer) {
+            arrowContainer.classList.add('hidden');
+        }
         
         // 3. Clear active nav buttons highlights (Fixed ReferenceError by querying directly)
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -626,6 +632,10 @@ window.addEventListener('load', async () => {
                 // If within 10 meters, show Arrival screen!
                 if (smoothedDistance < 10) {
                     htmlInstructionBar.classList.add('hidden');
+                    const arrowContainer = document.getElementById('html-hud-arrow-container');
+                    if (arrowContainer) {
+                        arrowContainer.classList.add('hidden');
+                    }
                     const destRoomSpan = document.getElementById('dest-room-name');
                     if (destRoomSpan) destRoomSpan.innerText = destConfig.name;
                     destinationOverlay.classList.remove('hidden');
@@ -849,6 +859,9 @@ window.addEventListener('load', async () => {
             const hudNavGroup = getHudNavGroup();
             if (hudNavGroup) hudNavGroup.setAttribute('visible', 'true');
             
+            const arrowContainer = document.getElementById('html-hud-arrow-container');
+            if (arrowContainer) arrowContainer.classList.remove('hidden');
+            
             // Show the "Simulate Arrival" button in sandbox
             simArriveBtn.classList.remove('hidden');
         }
@@ -984,6 +997,11 @@ window.addEventListener('load', async () => {
         isNavigating = false;
         smoothedDistance = null;
 
+        const arrowContainer = document.getElementById('html-hud-arrow-container');
+        if (arrowContainer) {
+            arrowContainer.classList.add('hidden');
+        }
+
         // Hide AR elements
         const destPin = getDestPin();
         if (destPin) destPin.setAttribute('visible', 'false');
@@ -1023,4 +1041,47 @@ window.addEventListener('load', async () => {
             }
         });
     }
+
+    // ==========================================
+    // 2D HUD DIRECTION ARROW ROTATION LOOP
+    // ==========================================
+    let current2DArrowAngle = 0;
+    
+    function animate2DArrow() {
+        if (isNavigating && currentMode === 'ar') {
+            const arrowEl = document.getElementById('html-hud-arrow');
+            if (arrowEl) {
+                if (window.targetHeading !== undefined && window.targetHeading !== null) {
+                    let deviceHeading = window.deviceHeading;
+                    const cameraEl = document.querySelector('[gps-camera]');
+                    
+                    // Fallback to WebGL camera rotation if compass isn't available
+                    if (deviceHeading === undefined || deviceHeading === null) {
+                        if (cameraEl && cameraEl.object3D) {
+                            const cameraY = cameraEl.object3D.rotation.y * (180 / Math.PI);
+                            deviceHeading = (360 - cameraY) % 360;
+                        } else {
+                            deviceHeading = 0;
+                        }
+                    }
+                    
+                    // Rotate clockwise/counter-clockwise relative to the direction the user faces
+                    const targetAngle = (window.targetHeading - deviceHeading + 360) % 360;
+                    
+                    // Shortest path interpolation (lerp) for smooth rotation
+                    let diff = targetAngle - current2DArrowAngle;
+                    diff = (diff + 180) % 360;
+                    if (diff < 0) diff += 360;
+                    diff -= 180;
+                    
+                    const lerpFactor = 0.12; // Damping coefficient (0.12 = smooth and highly responsive)
+                    current2DArrowAngle = (current2DArrowAngle + diff * lerpFactor + 360) % 360;
+                    
+                    arrowEl.style.transform = `rotate(${current2DArrowAngle}deg)`;
+                }
+            }
+        }
+        requestAnimationFrame(animate2DArrow);
+    }
+    requestAnimationFrame(animate2DArrow);
 });

@@ -375,6 +375,14 @@
         }
     </style>
 
+    <!-- Beautiful 2D Directional Arrow Overlay -->
+    <div id="html-hud-arrow-container" class="glass-panel hidden" style="position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); width: 120px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 9999; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.15); background: rgba(15, 23, 42, 0.75);">
+        <svg id="html-hud-arrow" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 70px; height: 70px; transition: transform 0.05s linear; filter: drop-shadow(0 0 8px #10B981);">
+            <line x1="12" y1="19" x2="12" y2="5"></line>
+            <polyline points="5 12 12 5 19 12"></polyline>
+        </svg>
+    </div>
+
     <!-- UI Overlays -->
     <div id="loader" class="glass-panel centered-panel">
         <div class="spinner"></div>
