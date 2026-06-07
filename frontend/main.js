@@ -270,6 +270,11 @@ window.addEventListener('load', async () => {
                 const savedDest = sessionStorage.getItem('nav_activeDestination');
                 const savedNavigating = sessionStorage.getItem('nav_isNavigating') === 'true';
                 if (savedDest && savedNavigating) {
+                    const destConfig = navigationConfig[savedDest];
+                    if (destConfig) {
+                        window.activeDestinationConfig = destConfig;
+                        activeDestination = savedDest;
+                    }
                     const hudNavGroup = getHudNavGroup();
                     if (hudNavGroup) hudNavGroup.setAttribute('visible', 'true');
                     const arrowContainer = document.getElementById('centered-hud-container');
@@ -871,6 +876,7 @@ window.addEventListener('load', async () => {
             htmlVideoPlayer.pause();
             videoOverlay.classList.add('hidden');
             activeDestination = destConfig.id;
+            window.activeDestinationConfig = destConfig;
             
             const destPin = getDestPin();
             if (destPin) {
