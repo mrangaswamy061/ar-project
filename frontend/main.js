@@ -200,7 +200,10 @@ window.addEventListener('load', async () => {
         }
     };
 
-    // Render fallback destinations instantly
+    // Restore session first so that currentMode and AR scene are initialized before rendering destinations
+    restoreSession();
+
+    // Render fallback destinations instantly (it will restore active destination click if available)
     renderDynamicDestinations();
 
     // Fetch dynamic configurations without blocking the UI
@@ -223,7 +226,6 @@ window.addEventListener('load', async () => {
     }
     
     fetchNavigationData();
-    restoreSession();
 
     // Initially hide dev sandbox overlay until AR mode is active
     if (devSandbox) devSandbox.style.display = 'none';
@@ -261,6 +263,15 @@ window.addEventListener('load', async () => {
                 if (loaderDesc) loaderDesc.innerText = "Restoring your active navigation session.";
 
                 initARScene();
+                
+                // Explicitly set the HUD navigation group visible if session was actively navigating
+                const savedDest = localStorage.getItem('nav_activeDestination');
+                const savedNavigating = localStorage.getItem('nav_isNavigating') === 'true';
+                if (savedDest && savedNavigating) {
+                    const hudNavGroup = getHudNavGroup();
+                    if (hudNavGroup) hudNavGroup.setAttribute('visible', 'true');
+                }
+
                 startARTracking();
             }
         }
