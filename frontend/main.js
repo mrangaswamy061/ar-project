@@ -437,6 +437,7 @@ window.addEventListener('load', async () => {
                                 latitude: position.coords.latitude,
                                 longitude: position.coords.longitude
                             };
+                            window.lastGpsPosition = lastGpsPosition;
                             updateNavigationUI();
                         },
                         (err) => console.warn("GPS Poll Warning:", err),
@@ -627,8 +628,11 @@ window.addEventListener('load', async () => {
                 if (smoothedDistance === null) {
                     smoothedDistance = targetDistance;
                 } else {
-                    // Exponential smoothing for distance updates to prevent jitter and sudden jumps
-                    smoothedDistance = smoothedDistance * 0.82 + targetDistance * 0.18;
+                    // Adaptive distance smoothing: responds quickly to larger changes
+                    // but filters minor GPS jitter when stationary
+                    const distanceDiff = Math.abs(targetDistance - smoothedDistance);
+                    const distanceLerpFactor = distanceDiff > 8 ? 0.5 : 0.18;
+                    smoothedDistance = smoothedDistance * (1 - distanceLerpFactor) + targetDistance * distanceLerpFactor;
                 }
                 
                 const displayDistance = Math.round(smoothedDistance);
@@ -1128,8 +1132,9 @@ window.addEventListener('load', async () => {
                 if (diff < 0) diff += 360;
                 diff -= 180;
                 
-                const lerpFactor = 0.12; // Damping coefficient (smooth but responsive)
-                current2DArrowAngle = (current2DArrowAngle + diff * lerpFactor + 360) % 360;
+                // Adaptive rotation smoothing: fast tracking on turn, high stability on lock
+                const rotationLerpFactor = Math.abs(diff) > 25 ? 0.35 : 0.18;
+                current2DArrowAngle = (current2DArrowAngle + diff * rotationLerpFactor + 360) % 360;
                 
                 arrowWrapper.style.transform = `rotate(${current2DArrowAngle}deg)`;
 

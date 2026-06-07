@@ -157,6 +157,7 @@
             window.deviceHeading = null;
             let hasAbsoluteHeading = false;
 
+            let smoothedHeading = null;
             function handleOrientation(e) {
                 let heading = null;
                 
@@ -172,12 +173,27 @@
 
                 if (e.webkitCompassHeading !== undefined) {
                     heading = e.webkitCompassHeading; // iOS device compass heading
-                } else if (e.alpha !== null) {
-                    heading = (360 - e.alpha) % 360; // Android device compass heading
+                } else if (e.absolute || e.type === 'deviceorientationabsolute') {
+                    heading = (360 - e.alpha) % 360; // Android device absolute compass heading
+                } else if (e.alpha !== null && !hasAbsoluteHeading) {
+                    heading = (360 - e.alpha) % 360; // Android relative compass fallback
                 }
                 
                 if (heading !== null) {
-                    window.deviceHeading = heading;
+                    if (smoothedHeading === null) {
+                        smoothedHeading = heading;
+                    } else {
+                        // Shortest path interpolation for orientation event smoothing
+                        let diff = heading - smoothedHeading;
+                        diff = (diff + 180) % 360;
+                        if (diff < 0) diff += 360;
+                        diff -= 180;
+                        
+                        // Adaptive smoothing factor based on velocity of rotation
+                        const factor = Math.abs(diff) > 15 ? 0.35 : 0.15;
+                        smoothedHeading = (smoothedHeading + diff * factor + 360) % 360;
+                    }
+                    window.deviceHeading = smoothedHeading;
                 }
             }
             window.handleOrientation = handleOrientation;
@@ -250,7 +266,8 @@
                     if (diff < 0) diff += 360;
                     diff -= 180;
                     
-                    const lerpFactor = 0.12;
+                    // Dynamic responsiveness based on speed of rotation
+                    const lerpFactor = Math.abs(diff) > 25 ? 0.35 : 0.18;
                     this.currentAngle = (this.currentAngle + diff * lerpFactor + 360) % 360;
                 }
 
