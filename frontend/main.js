@@ -141,6 +141,7 @@ window.addEventListener('load', async () => {
     let initialHeading = null;
     let lastGpsPosition = null;
     let watchId = null;
+    let pollIntervalId = null;
 
     // Handle AR.js Camera Permission Errors gracefully!
     window.addEventListener('camera-error', (err) => {
@@ -336,6 +337,27 @@ window.addEventListener('load', async () => {
                     timeout: 15000
                 }
             );
+
+            // Periodically force-refresh location data to prevent watchPosition freezing on mobile browsers
+            pollIntervalId = setInterval(() => {
+                if (isNavigating && currentMode === 'ar') {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            lastGpsPosition = {
+                                latitude: position.coords.latitude,
+                                longitude: position.coords.longitude
+                            };
+                            updateNavigationUI();
+                        },
+                        (err) => console.warn("GPS Poll Warning:", err),
+                        {
+                            enableHighAccuracy: true,
+                            maximumAge: 0,
+                            timeout: 2500
+                        }
+                    );
+                }
+            }, 2500);
         } else {
             loader.classList.add('hidden');
             errorOverlay.classList.remove('hidden');
@@ -373,10 +395,14 @@ window.addEventListener('load', async () => {
         simLostBtn.classList.add('hidden');
         simFoundBtn.classList.remove('hidden');
         
-        // 6. Clear GPS watch and reset states
+        // 6. Clear GPS watch, polling interval, and reset states
         if (watchId !== null) {
             navigator.geolocation.clearWatch(watchId);
             watchId = null;
+        }
+        if (pollIntervalId !== null) {
+            clearInterval(pollIntervalId);
+            pollIntervalId = null;
         }
         lastGpsPosition = null;
         isLocationIdentified = false;
