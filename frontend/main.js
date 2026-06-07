@@ -83,7 +83,7 @@ window.addEventListener('load', async () => {
                             <a-cone color="#10B981" radius-bottom="0.08" radius-top="0" height="0.3" rotation="-90 0 0" position="0 0 -0.15"></a-cone>
                             <a-cylinder color="#10B981" radius="0.04" height="0.3" rotation="-90 0 0" position="0 0 0.15"></a-cylinder>
                         </a-entity>
-                        <a-text id="hud-nav-distance" value="" align="center" color="#ffffff" position="0 -0.4 0" scale="0.5 0.5 0.5" font="kelsonsans"></a-text>
+                        <a-text id="hud-nav-distance" value="" align="center" color="#ffffff" position="0 -0.4 0" scale="0.5 0.5 0.5"></a-text>
                     </a-entity>
                 </a-camera>
             </a-scene>
@@ -143,6 +143,7 @@ window.addEventListener('load', async () => {
     let watchId = null;
     let pollIntervalId = null;
     let simWalkIntervalId = null;
+    let smoothedDistance = null;
 
     // Handle AR.js Camera Permission Errors gracefully!
     window.addEventListener('camera-error', (err) => {
@@ -319,7 +320,10 @@ window.addEventListener('load', async () => {
             DeviceOrientationEvent.requestPermission()
                 .then(response => {
                     if (response === 'granted') {
-                        window.addEventListener('deviceorientation', () => {}, true);
+                        if (typeof window.handleOrientation === 'function') {
+                            window.addEventListener('deviceorientation', window.handleOrientation, true);
+                            window.addEventListener('deviceorientationabsolute', window.handleOrientation, true);
+                        }
                     }
                 })
                 .catch(console.error);
@@ -354,11 +358,11 @@ window.addEventListener('load', async () => {
                         loader.classList.add('hidden');
                         errorOverlay.classList.add('hidden');
                         
-                        // If we are restoring an existing active session, go straight to navMenu without Success overlay delay
+                        // If we are restoring an existing active session, do not show the success overlay or the navigation menu
                         const savedDest = localStorage.getItem('nav_activeDestination');
                         const savedNavigating = localStorage.getItem('nav_isNavigating') === 'true';
                         if (savedDest && savedNavigating) {
-                            navMenu.classList.remove('hidden');
+                            // Keep menu hidden, active AR guidance is running
                         } else {
                             successOverlay.classList.remove('hidden');
                             setTimeout(() => {
@@ -438,6 +442,7 @@ window.addEventListener('load', async () => {
         
         // 4. Reset compass states
         isNavigating = false;
+        smoothedDistance = null;
         
         // 5. Hide back button, badge, and dev sandbox
         globalBackBtn.classList.add('hidden');
@@ -489,23 +494,18 @@ window.addEventListener('load', async () => {
         
         const arrowStraight = `
             <svg class="nav-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 250px; height: 250px;"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
-            <div style="color: white; font-family: Outfit; font-size: 2rem; text-shadow: 2px 2px 10px black; margin-top: -30px;">Go Straight</div>
         `;
         const arrowLeft = `
             <svg class="nav-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 250px; height: 250px;"><polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg>
-            <div style="color: white; font-family: Outfit; font-size: 2rem; text-shadow: 2px 2px 10px black; margin-top: -30px;">Turn Left</div>
         `;
         const arrowRight = `
             <svg class="nav-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 250px; height: 250px;"><polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path></svg>
-            <div style="color: white; font-family: Outfit; font-size: 2rem; text-shadow: 2px 2px 10px black; margin-top: -30px;">Turn Right</div>
         `;
         const arrowDown = `
             <svg class="nav-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 250px; height: 250px;"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
-            <div style="color: white; font-family: Outfit; font-size: 2rem; text-shadow: 2px 2px 10px black; margin-top: -30px;">Go Down Stairs</div>
         `;
         const arrowAround = `
             <svg class="nav-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 250px; height: 250px;"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>
-            <div style="color: white; font-family: Outfit; font-size: 2rem; text-shadow: 2px 2px 10px black; margin-top: -30px;">Turn Around</div>
         `;
         
         // Destination Timestamps & Arrival Checkers
@@ -571,12 +571,21 @@ window.addEventListener('load', async () => {
             const destConfig = navigationConfig[activeDestination];
             if (destConfig && destConfig.lat && destConfig.lng) {
                 // Calculate distance using Haversine formula
-                const distance = calculateDistance(
+                const targetDistance = calculateDistance(
                     lastGpsPosition.latitude, 
                     lastGpsPosition.longitude,
                     destConfig.lat,
                     destConfig.lng
                 );
+                
+                if (smoothedDistance === null) {
+                    smoothedDistance = targetDistance;
+                } else {
+                    // Exponential smoothing for distance updates to prevent jitter and sudden jumps
+                    smoothedDistance = smoothedDistance * 0.82 + targetDistance * 0.18;
+                }
+                
+                const displayDistance = Math.round(smoothedDistance);
                 
                 // Calculate bearing to update the compass direction text
                 targetHeading = calculateBearing(
@@ -588,11 +597,10 @@ window.addEventListener('load', async () => {
                 window.targetHeading = targetHeading;
                 
                 const hudDistance = getHudDistance();
-                if (hudDistance) hudDistance.setAttribute('value', `${Math.round(distance)}m`);
+                if (hudDistance) hudDistance.setAttribute('value', `${displayDistance}m`);
                 
                 // Dynamically update textual instruction using GPS
-                const directionsText = destConfig.instructions ? `${destConfig.instructions}\n` : '';
-                htmlInstructionText.innerText = `${directionsText}Distance: ${Math.round(distance)}m`;
+                htmlInstructionText.innerText = `Distance: ${displayDistance}m`;
                 
                 // Show the HUD arrow since we now have GPS lock
                 const hudNavArrow = getHudNavArrow();
@@ -601,11 +609,11 @@ window.addEventListener('load', async () => {
                 // Update 3D AR floating text above the destination pin
                 const navInstruction = getNavInstruction();
                 if (navInstruction) {
-                    navInstruction.setAttribute('value', `${destConfig.name}\n${Math.round(distance)}m`);
+                    navInstruction.setAttribute('value', `${destConfig.name}\n${displayDistance}m`);
                 }
                 
                 // If within 10 meters, show Arrival screen!
-                if (distance < 10) {
+                if (smoothedDistance < 10) {
                     htmlInstructionBar.classList.add('hidden');
                     const destRoomSpan = document.getElementById('dest-room-name');
                     if (destRoomSpan) destRoomSpan.innerText = destConfig.name;
@@ -768,6 +776,7 @@ window.addEventListener('load', async () => {
         window.targetHeading = null;
         initialHeading = null; // recalibrate starting point
         isNavigating = true;
+        smoothedDistance = null;
 
         // Hide HUD arrow until GPS locks
         const hudNavArrow = getHudNavArrow();
@@ -814,8 +823,16 @@ window.addEventListener('load', async () => {
                 // Set the exact GPS coordinates of the destination
                 const lat = destConfig.lat || 0;
                 const lng = destConfig.lng || 0;
+                
+                // Force AR.js to calculate the updated position by removing and re-adding the component
+                destPin.removeAttribute('gps-entity-place');
                 destPin.setAttribute('gps-entity-place', `latitude: ${lat}; longitude: ${lng};`);
                 destPin.setAttribute('visible', 'true');
+
+                // Trigger manual update if component is initialized immediately
+                if (destPin.components && destPin.components['gps-entity-place'] && typeof destPin.components['gps-entity-place']._updatePosition === 'function') {
+                    destPin.components['gps-entity-place']._updatePosition();
+                }
             }
             
             const hudNavGroup = getHudNavGroup();
@@ -833,8 +850,8 @@ window.addEventListener('load', async () => {
             // If we are currently in simulation mode (Simulate Location Found has been clicked and is hidden)
             if (simFoundBtn.classList.contains('hidden')) { 
                 simArrowModel.setAttribute('position', '0 -20 -150'); // move in front of camera view
-                simNavInstruction.setAttribute('position', '0 60 -150');
-                simNavInstruction.setAttribute('value', instructionText);
+                simNavInstruction.setAttribute('position', '0 -9999 -150'); // Hide simulated text instructions
+                simNavInstruction.setAttribute('value', '');
                 
                 // Use the parsed Y rotation directly in the simulation
                 // arrow parent is rotated 90 on X to lie flat on A-Frame's default X-Z ground plane.
@@ -954,6 +971,7 @@ window.addEventListener('load', async () => {
         }
 
         isNavigating = false;
+        smoothedDistance = null;
 
         // Hide AR elements
         const destPin = getDestPin();
@@ -970,4 +988,28 @@ window.addEventListener('load', async () => {
         simLostBtn.classList.add('hidden');
         simFoundBtn.classList.remove('hidden');
     });
+
+    // ==========================================
+    // COURSES MODAL INTERACTIVE LOGIC
+    // ==========================================
+    const viewCoursesBtn = document.getElementById('view-courses-btn');
+    const coursesModal = document.getElementById('courses-modal');
+    const closeCoursesBtn = document.getElementById('close-courses-btn');
+
+    if (viewCoursesBtn && coursesModal && closeCoursesBtn) {
+        viewCoursesBtn.addEventListener('click', () => {
+            coursesModal.classList.remove('hidden');
+        });
+
+        closeCoursesBtn.addEventListener('click', () => {
+            coursesModal.classList.add('hidden');
+        });
+
+        // Close when clicking overlay backdrop
+        coursesModal.addEventListener('click', (e) => {
+            if (e.target === coursesModal) {
+                coursesModal.classList.add('hidden');
+            }
+        });
+    }
 });

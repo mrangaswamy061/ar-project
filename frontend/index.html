@@ -33,11 +33,20 @@
             };
 
             function distributePosition(coords) {
-                lastKnownCoords = coords;
+                const mappedCoords = {
+                    latitude: coords.latitude,
+                    longitude: coords.longitude,
+                    accuracy: coords.accuracy !== undefined ? coords.accuracy : 10,
+                    altitude: coords.altitude !== undefined ? coords.altitude : null,
+                    altitudeAccuracy: coords.altitudeAccuracy !== undefined ? coords.altitudeAccuracy : null,
+                    heading: coords.heading !== undefined ? coords.heading : null,
+                    speed: coords.speed !== undefined ? coords.speed : null
+                };
+                lastKnownCoords = mappedCoords;
                 brokerWatchers.forEach((watcher) => {
                     if (watcher.success) {
                         watcher.success({
-                            coords: { ...coords },
+                            coords: mappedCoords,
                             timestamp: Date.now()
                         });
                     }
@@ -143,6 +152,37 @@
             window.isSimulatingLocation = function() {
                 return isSimulating;
             };
+
+            // Compass Orientation Sensor Listener
+            window.deviceHeading = null;
+            let hasAbsoluteHeading = false;
+
+            function handleOrientation(e) {
+                let heading = null;
+                
+                // Prioritize absolute device orientation events
+                if (e.type === 'deviceorientationabsolute' || e.absolute) {
+                    hasAbsoluteHeading = true;
+                }
+
+                // If absolute heading is available, discard non-absolute deviceorientation events to prevent jitter/incorrect alignment
+                if (hasAbsoluteHeading && e.type === 'deviceorientation' && !e.absolute) {
+                    return;
+                }
+
+                if (e.webkitCompassHeading !== undefined) {
+                    heading = e.webkitCompassHeading; // iOS device compass heading
+                } else if (e.alpha !== null) {
+                    heading = (360 - e.alpha) % 360; // Android device compass heading
+                }
+                
+                if (heading !== null) {
+                    window.deviceHeading = heading;
+                }
+            }
+            window.handleOrientation = handleOrientation;
+            window.addEventListener('deviceorientation', handleOrientation, true);
+            window.addEventListener('deviceorientationabsolute', handleOrientation, true);
         })();
     </script>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
@@ -168,31 +208,40 @@
     <script>
         // Custom A-Frame component to rotate the HUD arrow using local coordinate projection
         AFRAME.registerComponent('compass-arrow', {
+            init: function () {
+                this.currentAngle = null;
+            },
             tick: function () {
-                const destPin = document.getElementById('destination-pin');
-                if (!destPin || !destPin.object3D || !destPin.getAttribute('visible')) return;
+                if (window.targetHeading === undefined || window.targetHeading === null) return;
 
                 const cameraEl = document.querySelector('[gps-camera]');
                 if (!cameraEl || !cameraEl.object3D) return;
 
-                // Ensure world matrices are calculated and up-to-date
-                destPin.object3D.updateMatrixWorld();
-                cameraEl.object3D.updateMatrixWorld();
+                // Read absolute device compass heading, fallback to A-Frame camera rotation on desktop/PC
+                let deviceHeading = window.deviceHeading;
+                const cameraY = cameraEl.object3D.rotation.y * (180 / Math.PI);
 
-                // Get target world position
-                const destPos = new THREE.Vector3();
-                destPin.object3D.getWorldPosition(destPos);
+                if (deviceHeading === undefined || deviceHeading === null) {
+                    deviceHeading = (360 - cameraY) % 360;
+                }
 
-                // Project into camera local coordinates
-                cameraEl.object3D.worldToLocal(destPos);
+                // Points the arrow at the absolute GPS bearing relative to the device's current heading.
+                const targetAngle = (deviceHeading - window.targetHeading + 360) % 360;
 
-                // Calculate local rotation Y to point at target (XZ plane)
-                // -destPos.x because positive Y-rotation in THREE.js is counter-clockwise.
-                // -destPos.z because forward is -Z in THREE.js.
-                const angleRad = Math.atan2(-destPos.x, -destPos.z);
-                const angleDeg = angleRad * (180 / Math.PI);
+                if (this.currentAngle === null) {
+                    this.currentAngle = targetAngle;
+                } else {
+                    // Shortest path angle interpolation
+                    let diff = targetAngle - this.currentAngle;
+                    diff = (diff + 180) % 360;
+                    if (diff < 0) diff += 360;
+                    diff -= 180;
+                    
+                    const lerpFactor = 0.12; // Smooth damping coefficient (0.12 is highly responsive yet smooth)
+                    this.currentAngle = (this.currentAngle + diff * lerpFactor + 360) % 360;
+                }
 
-                this.el.setAttribute('rotation', `0 ${angleDeg} 0`);
+                this.el.setAttribute('rotation', `0 ${this.currentAngle} 0`);
             }
         });
     </script>
@@ -288,6 +337,10 @@
                 <button class="mode-card-action">Select AR Mode</button>
             </div>
         </div>
+        <!-- Courses Button -->
+        <button id="view-courses-btn" class="view-courses-btn">
+            <span>📚</span> View Offered Courses
+        </button>
     </div>
 
     <!-- Dev Sandbox Simulation Dashboard -->
@@ -379,6 +432,52 @@
 
     <!-- Dynamic AR Scene Container -->
     <div id="ar-scene-container"></div>
+
+    <!-- Beautiful Courses Modal Overlay -->
+    <div id="courses-modal" class="courses-modal hidden">
+        <div class="courses-modal-content glass-panel">
+            <button id="close-courses-btn" class="close-courses-btn">&times;</button>
+            <h2 class="courses-title">📚 Courses Offered</h2>
+            <p class="courses-subtitle">Explore academic programs at our college</p>
+            <div class="courses-list">
+                <div class="course-item">
+                    <span class="course-icon">🔬</span>
+                    <div class="course-details">
+                        <span class="course-name">1st PUC Science</span>
+                        <span class="course-desc">Physics, Chemistry, Mathematics, Biology / Computer Science</span>
+                    </div>
+                </div>
+                <div class="course-item">
+                    <span class="course-icon">💼</span>
+                    <div class="course-details">
+                        <span class="course-name">1st PUC Commerce</span>
+                        <span class="course-desc">Business Studies, Accountancy, Economics, Statistics / Computer Science</span>
+                    </div>
+                </div>
+                <div class="course-item">
+                    <span class="course-icon">🧪</span>
+                    <div class="course-details">
+                        <span class="course-name">2nd PUC Science</span>
+                        <span class="course-desc">Advanced Physics, Chemistry, Mathematics, Biology / Computer Science</span>
+                    </div>
+                </div>
+                <div class="course-item">
+                    <span class="course-icon">📈</span>
+                    <div class="course-details">
+                        <span class="course-name">2nd PUC Commerce</span>
+                        <span class="course-desc">Advanced Accountancy, Business Studies, Economics, Statistics</span>
+                    </div>
+                </div>
+                <div class="course-item bca">
+                    <span class="course-icon">💻</span>
+                    <div class="course-details">
+                        <span class="course-name">BCA (Bachelor of Computer Applications)</span>
+                        <span class="course-desc">Undergraduate degree in Computer Applications and Software Engineering</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script type="module" src="./main.js"></script>
 </body>
