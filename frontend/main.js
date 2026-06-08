@@ -562,7 +562,7 @@ window.addEventListener('load', async () => {
         if (devSandbox) devSandbox.style.display = 'none';
         
         simLostBtn.classList.add('hidden');
-        simFoundBtn.classList.remove('hidden');
+        simFoundBtn?.classList.remove('hidden');
         
         if (typeof window.stopSimulatedLocation === 'function') {
             window.stopSimulatedLocation();
@@ -931,7 +931,7 @@ window.addEventListener('load', async () => {
         
         if (simArrowModel && simNavInstruction) {
             // If we are currently in simulation mode (Simulate Location Found has been clicked and is hidden)
-            if (simFoundBtn.classList.contains('hidden')) { 
+            if (simFoundBtn && simFoundBtn.classList.contains('hidden')) { 
                 simArrowModel.setAttribute('position', '0 -20 -150'); // move in front of camera view
                 simNavInstruction.setAttribute('position', '0 -9999 -150'); // Hide simulated text instructions
                 simNavInstruction.setAttribute('value', '');
@@ -956,7 +956,7 @@ window.addEventListener('load', async () => {
     const simLostBtn = document.getElementById('sim-lost-btn');
     const simArriveBtn = document.getElementById('sim-arrive-btn');
 
-    simFoundBtn.addEventListener('click', () => {
+    simFoundBtn?.addEventListener('click', () => {
         // Clear any existing walk simulator
         if (simWalkIntervalId) {
             clearInterval(simWalkIntervalId);
@@ -1074,7 +1074,7 @@ window.addEventListener('load', async () => {
         if (simNavInstruction) simNavInstruction.setAttribute('position', '0 -9999 -150');
 
         simLostBtn.classList.add('hidden');
-        simFoundBtn.classList.remove('hidden');
+        simFoundBtn?.classList.remove('hidden');
     });
 
     // Change Route Button click handler
