@@ -922,7 +922,7 @@ window.addEventListener('load', async () => {
             if (arrowContainer) arrowContainer.classList.remove('hidden');
             
             // Show the "Simulate Arrival" button in sandbox
-            simArriveBtn.classList.remove('hidden');
+            simArriveBtn?.classList.remove('hidden');
         }
 
         // Apply simulation arrow animation (for PC sandbox testing mode)
@@ -1010,7 +1010,7 @@ window.addEventListener('load', async () => {
         }, 1500);
     });
 
-    simArriveBtn.addEventListener('click', () => {
+    simArriveBtn?.addEventListener('click', () => {
         if (simWalkIntervalId) {
             clearInterval(simWalkIntervalId);
             simWalkIntervalId = null;
